@@ -61,11 +61,28 @@ body {
     min-width: 120px;
 }
 .receipt-logo-info strong {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
     font-size: 1.1em;
     color: #fff;
     letter-spacing: 1px;
-    margin-bottom: 3px;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+.receipt-title-logo {
+    width: 4em;
+    height: 4em;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: center;
+    flex-shrink: 0;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.22);
+}
+.receipt-title-text {
+    display: block;
+    line-height: 1;
+    transform: translateY(0.02em);
 }
 .receipt-logo-info span {
     font-size: 0.78em;

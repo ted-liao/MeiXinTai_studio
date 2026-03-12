@@ -187,6 +187,7 @@ let countdownInterval = null;
 let dailyBackupInterval = null;
 let autoRefreshInterval = null;
 const REFRESH_INTERVAL = 5000;
+const ORDER_GENERATED_TTL_MS = 20 * 60 * 1000;
 
 // 上分管理預設值
 const DEFAULT_CONFIG = {
@@ -200,6 +201,7 @@ const DEFAULT_CONFIG = {
 
 let currentCodeSubTab = 'generate';
 let currentMemberSubTab = 'active';
+let currentOrdersCache = [];
 
 // 監聽 Auth
 firebase.auth().onAuthStateChanged((user) => {
@@ -303,13 +305,14 @@ function copyToClipboard(text, button) {
 
 async function loadData() {
     try {
-        const [membersSnapshot, codesSnapshot, queueSnapshot, sessionSnapshot, backupSnapshot, configSnapshot] = await Promise.all([
+        const [membersSnapshot, codesSnapshot, queueSnapshot, sessionSnapshot, backupSnapshot, configSnapshot, ordersSnapshot] = await Promise.all([
             database.ref('members').once('value'),
             database.ref('activationCodes').once('value'),
             database.ref('queue').once('value'),
             database.ref('gameSession').once('value'),
             database.ref('lastBackupTime').once('value'),
-            database.ref('calculatorConfig').once('value')
+            database.ref('calculatorConfig').once('value'),
+            database.ref('orders').once('value')
         ]);
 
         const membersData = membersSnapshot.val() || {};
@@ -318,6 +321,8 @@ async function loadData() {
         const activationCodes = Object.values(codesData);
         const queueData = queueSnapshot.val() || {};
         const queue = Object.values(queueData);
+        const ordersData = ordersSnapshot.val() || {};
+        const orders = Object.keys(ordersData).map(key => ({ id: key, ...ordersData[key] }));
         
         // 排隊排序
         queue.sort((a, b) => {
@@ -332,17 +337,20 @@ async function loadData() {
             return new Date(a.joinTime) - new Date(b.joinTime);
         });
 
+        orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
         return {
             members,
             activationCodes,
             queue,
+            orders,
             gameSession: sessionSnapshot.val(),
             lastBackupTime: backupSnapshot.val(),
             calculatorConfig: configSnapshot.val() || DEFAULT_CONFIG
         };
     } catch (error) {
         console.error('載入資料失敗:', error);
-        return { members: [], activationCodes: [], queue: [], gameSession: null, lastBackupTime: null, calculatorConfig: DEFAULT_CONFIG };
+        return { members: [], activationCodes: [], queue: [], orders: [], gameSession: null, lastBackupTime: null, calculatorConfig: DEFAULT_CONFIG };
     }
 }
 
@@ -427,14 +435,16 @@ async function initializeAdminDashboard() {
 async function refreshAdminDashboard() {
     try {
         const data = await loadData();
-        
+        const cleanedOrders = await cleanupGeneratedOrders(data.orders || []);
+
         renderGameSession(data.gameSession);
         renderQueueList(data.queue);
         renderCodeLists(data.activationCodes);
         renderMemberLists(data.members);
+        renderOrderManagement(cleanedOrders);
         renderBackupInfo(data.lastBackupTime);
         renderCalculatorConfig(data.calculatorConfig);
-        
+
     } catch (error) { console.error("儀表板刷新失敗:", error); }
 }
 
@@ -446,7 +456,7 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.getElementById(`tab-${tabName}`).classList.add('active');
     
-    if (tabName === 'audience' || tabName === 'boosting') {
+    if (tabName === 'audience' || tabName === 'orders' || tabName === 'boosting') {
         refreshAdminDashboard();
     }
 }
@@ -918,6 +928,227 @@ function renderBackupInfo(lastBackupTime) {
     if (!container) return;
     const trans = translations.zh;
     container.innerHTML = lastBackupTime ? `<strong>${trans.backup_last_time}</strong> ${new Date(lastBackupTime).toLocaleString()}` : `<strong>${trans.backup_none}</strong>`;
+}
+
+async function cleanupGeneratedOrders(orders) {
+    if (!orders || orders.length === 0) return [];
+
+    const now = Date.now();
+    const expiredGenerated = orders.filter((o) => {
+        if (o.status !== 'generated') return false;
+        const createdAt = Number(o.createdAt) || 0;
+        const expiresAt = Number(o.expiresAt) || (createdAt + ORDER_GENERATED_TTL_MS);
+        return now >= expiresAt;
+    });
+
+    if (expiredGenerated.length === 0) return orders;
+
+    try {
+        const updates = {};
+        expiredGenerated.forEach((o) => {
+            updates[`orders/${o.id}`] = null;
+        });
+        await database.ref().update(updates);
+    } catch (error) {
+        console.error('清理未下載訂單失敗:', error);
+    }
+
+    const expiredIds = new Set(expiredGenerated.map((o) => o.id));
+    return orders.filter((o) => !expiredIds.has(o.id));
+}
+
+function formatOrderDateTime(timestamp) {
+    if (!timestamp) return '-';
+    const date = new Date(Number(timestamp));
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleString('zh-TW');
+}
+
+function escapeHtml(text) {
+    return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function buildOrderItemHtml(order, withActions) {
+    const safeOrderId = String(order.id || '').replace(/'/g, "\\'");
+    const orderNo = escapeHtml(order.orderNumber || order.orderId || order.id || '未知編號');
+    const title = escapeHtml(order.title || '訂單');
+    const total = escapeHtml(order.total || 'NT$0');
+    const lineName = escapeHtml(order.lineName || '未填寫');
+    const createdText = formatOrderDateTime(order.createdAt);
+    const downloadedText = order.downloadedAt ? formatOrderDateTime(order.downloadedAt) : '-';
+
+    return `
+    <div class="order-record-item" onclick="playOrderItemClick(this)" ondblclick="openOrderDetail('${safeOrderId}', this)">
+        <div class="order-record-top">
+            <strong>${orderNo}</strong>
+            <span>${title}</span>
+        </div>
+        <div class="order-record-meta">
+            <div>金額：${total}</div>
+            <div>LINE：${lineName}</div>
+            <div>建立：${createdText}</div>
+            <div>下載：${downloadedText}</div>
+        </div>
+        ${withActions ? `
+            <div class="order-record-actions">
+                <button class="btn btn-success btn-small" onclick="event.stopPropagation(); markOrderCompleted('${safeOrderId}')">已完成</button>
+                <button class="btn btn-danger btn-small" onclick="event.stopPropagation(); deleteOrderRecord('${safeOrderId}')">刪除</button>
+            </div>
+        ` : `
+            <div class="order-record-actions">
+                <button class="btn btn-small" onclick="event.stopPropagation(); returnOrderToPending('${safeOrderId}')">返回</button>
+            </div>
+        `}
+    </div>`;
+}
+
+function renderOrderManagement(orders) {
+    const pendingListEl = document.getElementById('pendingOrdersList');
+    const completedListEl = document.getElementById('completedOrdersList');
+    const pendingCountEl = document.getElementById('pendingOrderCount');
+    const completedCountEl = document.getElementById('completedOrderCount');
+
+    if (!pendingListEl || !completedListEl) return;
+
+    currentOrdersCache = Array.isArray(orders) ? orders : [];
+
+    const pending = currentOrdersCache.filter((o) => o.status === 'pending');
+    const completed = currentOrdersCache.filter((o) => o.status === 'completed');
+
+    if (pendingCountEl) pendingCountEl.textContent = pending.length;
+    if (completedCountEl) completedCountEl.textContent = completed.length;
+
+    pendingListEl.innerHTML = pending.length
+        ? pending.map((o) => buildOrderItemHtml(o, true)).join('')
+        : '<div class="empty-state">目前沒有待處理訂單</div>';
+
+    completedListEl.innerHTML = completed.length
+        ? completed.map((o) => buildOrderItemHtml(o, false)).join('')
+        : '<div class="empty-state">目前沒有已完成紀錄</div>';
+}
+
+async function markOrderCompleted(orderId) {
+    showLoading();
+    try {
+        await database.ref(`orders/${orderId}`).update({
+            status: 'completed',
+            completedAt: Date.now(),
+            updatedAt: Date.now()
+        });
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('更新訂單完成狀態失敗:', error);
+        alert('更新失敗，請稍後再試');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function returnOrderToPending(orderId) {
+    showLoading();
+    try {
+        await database.ref(`orders/${orderId}`).update({
+            status: 'pending',
+            completedAt: null,
+            updatedAt: Date.now()
+        });
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('返回待處理失敗:', error);
+        alert('返回失敗，請稍後再試');
+    } finally {
+        hideLoading();
+    }
+}
+
+function playOrderItemClick(element) {
+    if (!element) return;
+    element.classList.remove('is-clicked');
+    void element.offsetWidth;
+    element.classList.add('is-clicked');
+    setTimeout(() => element.classList.remove('is-clicked'), 240);
+}
+
+function closeOrderDetailModal() {
+    const modal = document.getElementById('orderDetailModal');
+    if (modal) modal.classList.remove('active');
+}
+
+window.addEventListener('click', (event) => {
+    const modal = document.getElementById('orderDetailModal');
+    if (modal && event.target === modal) {
+        closeOrderDetailModal();
+    }
+});
+
+function openOrderDetail(orderId, element) {
+    playOrderItemClick(element);
+
+    const order = currentOrdersCache.find((item) => item.id === orderId);
+    if (!order) return;
+
+    const container = document.getElementById('orderDetailContent');
+    const modal = document.getElementById('orderDetailModal');
+    if (!container || !modal) return;
+
+    const statusMap = {
+        pending: '待處理',
+        completed: '已完成',
+        generated: '已生成'
+    };
+
+    const itemRows = (order.items || []).map((item) => `
+        <div class="order-detail-row">
+            <span>${escapeHtml(item.label)}</span>
+            <span>${escapeHtml(item.value)}</span>
+        </div>
+    `).join('') || '<div class="empty-state">沒有可顯示的明細</div>';
+
+    container.innerHTML = `
+        <div class="order-detail-block">
+            <h3>${escapeHtml(order.orderNumber || order.id)}</h3>
+            <div class="order-detail-row"><span>狀態</span><span>${statusMap[order.status] || order.status || '-'}</span></div>
+            <div class="order-detail-row"><span>標題</span><span>${escapeHtml(order.title || '訂單')}</span></div>
+            <div class="order-detail-row"><span>副標</span><span>${escapeHtml(order.subtitle || '-')}</span></div>
+            <div class="order-detail-row"><span>應付金額</span><span>${escapeHtml(order.total || 'NT$0')}</span></div>
+            <div class="order-detail-row"><span>LINE 名稱</span><span>${escapeHtml(order.lineName || '未填寫')}</span></div>
+            <div class="order-detail-row"><span>建立時間</span><span>${formatOrderDateTime(order.createdAt)}</span></div>
+            <div class="order-detail-row"><span>下載時間</span><span>${formatOrderDateTime(order.downloadedAt)}</span></div>
+            <div class="order-detail-row"><span>完成時間</span><span>${formatOrderDateTime(order.completedAt)}</span></div>
+        </div>
+        <div class="order-detail-block">
+            <h3>訂單項目</h3>
+            ${itemRows}
+        </div>
+        <div class="order-detail-block">
+            <h3>備註</h3>
+            <p>${escapeHtml(order.note || '無')}</p>
+        </div>
+    `;
+
+    modal.classList.add('active');
+}
+
+async function deleteOrderRecord(orderId) {
+    const orderNoText = orderId;
+    const confirmed = confirm(`確定要刪除訂單 ${orderNoText} 嗎？\n此操作無法復原。`);
+    if (!confirmed) return;
+
+    showLoading();
+    try {
+        await database.ref(`orders/${orderId}`).remove();
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('刪除訂單失敗:', error);
+        alert('刪除失敗，請稍後再試');
+    } finally {
+        hideLoading();
+    }
 }
 
 // ==========================================

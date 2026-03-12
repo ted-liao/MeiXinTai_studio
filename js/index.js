@@ -25,7 +25,7 @@ let forgotPasswordUser = null;
 let editingMember = null;
 let autoRefreshInterval = null;
 let countdownInterval = null;
-let currentPage = 'home';
+let currentPage = 'landing';
 
 // 計算機全域變數
 let calcConfig = null; 
@@ -1424,10 +1424,16 @@ function showPage(pageId) {
     currentPage = pageId;
     
     // 1. 切換分頁內容顯示
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => {
+        p.classList.remove('active');
+        p.classList.remove('page-enter');
+    });
     const target = document.getElementById(pageId);
     if (target) {
         target.classList.add('active');
+        // 強制回流，確保每次切換都會重播入場動畫
+        void target.offsetWidth;
+        target.classList.add('page-enter');
     } else {
         console.error("找不到 ID 為 " + pageId + " 的頁面區塊");
     }

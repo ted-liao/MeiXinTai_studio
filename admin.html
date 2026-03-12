@@ -27,6 +27,7 @@
         </a>
 
         <button class="nav-btn active" onclick="switchTab('audience')">👥 觀眾管理</button>
+        <button class="nav-btn" onclick="switchTab('orders')">🧾 訂單管理</button>
         <button class="nav-btn" onclick="switchTab('boosting')">📈 上分管理</button>
         
         <div style="flex: 1;"></div>
@@ -131,6 +132,24 @@
                 <h2>📈 系統備份</h2>
                 <div class="backup-info" id="backupInfo"></div>
                 <button class="btn btn-success" onclick="exportToExcel()">🗂️ 立即導出 Excel 備份</button>
+            </div>
+        </div>
+
+        <!-- 訂單管理分頁 -->
+        <div id="tab-orders" class="tab-content">
+            <div class="card" data-aos="fade-up">
+                <h2>🧾 訂單管理</h2>
+                <p style="color:#aaa; margin-bottom: 12px;">自動追蹤前台訂單生成與下載狀態，並可管理待處理與已完成交易紀錄。</p>
+                <div class="order-board-grid">
+                    <div class="order-board-column order-col-pending">
+                        <h3>① 待處理訂單 (<span id="pendingOrderCount">0</span>)</h3>
+                        <div class="list-container" id="pendingOrdersList"></div>
+                    </div>
+                    <div class="order-board-column order-col-completed">
+                        <h3>② 已完成紀錄 (<span id="completedOrderCount">0</span>)</h3>
+                        <div class="list-container" id="completedOrdersList"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -276,6 +295,16 @@
             <input type="password" id="changeConfirmPassword">
         </div>
         <button class="btn" onclick="changePassword()" style="width: 100%;">確認更改</button>
+    </div>
+</div>
+
+<div id="orderDetailModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>訂單完整明細</h2>
+            <button class="modal-close" onclick="closeOrderDetailModal()">×</button>
+        </div>
+        <div id="orderDetailContent"></div>
     </div>
 </div>
 

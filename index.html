@@ -8,7 +8,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>玫心泰工作室の管理系統</title>
+<title>玫心泰遊戲工作室</title>
 
 <link rel="stylesheet" href="css/index.css" />
 
@@ -46,7 +46,7 @@
 
             <a href="index.html">
                 
-                <h1 data-aos="fade-down">🎮 玫心泰工作室の管理系統</h1>
+                <h1 data-aos="fade-down"><img src="image/logo.jpg" alt="玫心泰遊戲工作室 Logo" class="title-logo"><span class="title-text">玫心泰遊戲工作室</span></h1>
 
                 <p data-aos="fade-down">📢 GAME LIVE 主播專屬平台</p>
 
@@ -82,7 +82,49 @@
 
             <!-- ========== 首頁 ========== -->
 
-            <div id="home" class="page active">
+            <div id="landing" class="page active">
+
+                <div class="site-home-intro" data-aos="fade-up">
+                    <h2>🏠 歡迎來到玫心泰遊戲工作室</h2>
+                    <p class="site-home-lead">這裡是主播專屬服務平台，整合會員註冊、排隊管理、會員購買與多人報價，讓你從了解方案到下單都能一次完成。</p>
+
+                    <div class="site-home-sections">
+                        <div class="site-home-zone site-home-zone-subs">
+                            <h3>💎 Subscribers 專區</h3>
+                            <div class="site-home-list">
+                                <div class="site-home-item">
+                                    <h4>會員專案</h4>
+                                    <p>查看傳說、鑽石、黃金方案內容與價格，快速比較最適合你的方案。</p>
+                                </div>
+                                <div class="site-home-item">
+                                    <h4>排隊系統</h4>
+                                    <p>即時查看目前排隊狀態與進度，掌握服務輪到你的時間。</p>
+                                </div>
+                                <div class="site-home-item">
+                                    <h4>會員購買</h4>
+                                    <p>挑選會員等級與時長，系統自動整理下單資訊，送單流程更快速。</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="site-home-zone site-home-zone-carry">
+                            <h3>🚀 Carry 專區</h3>
+                            <div class="site-home-list">
+                                <div class="site-home-item">
+                                    <h4>多人報價</h4>
+                                    <p>輸入目前分數與目標分數，自動計算代打或護航的透明價格。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+
+            <!-- ========== 會員介紹 ========== -->
+
+            <div id="home" class="page">
 
                 <h2 style="margin-bottom: 20px;" data-aos="zoom-in">歡迎來到 廖嘉泰の會員系統</h2>
 
@@ -659,15 +701,23 @@
 
         <!-- 右側：直式導航欄 -->
 
-        <nav class="side-nav-right">
+        <nav class="side-nav-right nav-grouped">
 
-    <button class="nav-btn active" onclick="showPage('home')">💎 首頁</button>
+    <div class="nav-group nav-group-home">
+        <button class="nav-btn nav-home active" onclick="showPage('landing')">🏠 首頁</button>
+    </div>
 
-    <button class="nav-btn" onclick="showPage('queue')">📋 排隊系統</button>
+    <div class="nav-group nav-group-subs">
+        <div class="nav-group-title">Subscribers 專區</div>
+        <button class="nav-btn nav-subs" onclick="showPage('home')">💎 會員專案</button>
+        <button class="nav-btn nav-subs" onclick="showPage('queue')">📋 排隊系統</button>
+        <button class="nav-btn nav-subs" onclick="showPage('purchase')">🛒 購買會員</button>
+    </div>
 
-    <button class="nav-btn" onclick="showPage('purchase')">🛒 購買會員</button>
-
-    <button class="nav-btn" onclick="showPage('calculator')">🚀 多人報價</button>
+    <div class="nav-group nav-group-carry">
+        <div class="nav-group-title">Carry 專區</div>
+        <button class="nav-btn nav-carry" onclick="showPage('calculator')">🚀 多人報價</button>
+    </div>
 
 </nav>
 
