@@ -415,6 +415,8 @@
 
                             <div class="service-toggle-container">
 
+                                <div class="service-option-shell">
+
                                 <div class="service-option active" id="optBoost" onclick="setServiceType('boost')">
 
                                     <div class="icon">⚡</div>
@@ -425,17 +427,23 @@
 
                                 </div>
 
-                                <div class="service-option" id="optCarry" onclick="setServiceType('carry')">
-
-                                    <div class="icon">🛡️</div>
-
-                                    <div class="label">皇家護航</div>
-
-                                    <div class="sub-label">甜妹帶飛，主播和高端女玩家陪玩上分</div>
-
                                 </div>
 
-                                <span class="carry-corner-crown" aria-hidden="true">👑</span>
+                                <div class="service-option-shell carry-option-shell">
+
+                                    <div class="service-option" id="optCarry" onclick="setServiceType('carry')">
+
+                                        <div class="icon">🛡️</div>
+
+                                        <div class="label">皇家護航</div>
+
+                                        <div class="sub-label">甜妹帶飛，主播和高端女玩家陪玩上分</div>
+
+                                    </div>
+
+                                    <span class="carry-corner-crown" aria-hidden="true">👑</span>
+
+                                </div>
 
                             </div>
 
@@ -695,6 +703,182 @@
 
             </div>
 
+            <div id="dmz-quote" class="page">
+
+                <div class="card dmz-page-card">
+
+                    <div class="dmz-page-hero">
+                        <div>
+                            <h2>💼 DMZ 報價</h2>
+                            <p>快速選擇刷單數、撤離任務與特殊配件，系統會自動套用對應套餐價格並整理成下單資訊。</p>
+                        </div>
+                    </div>
+
+                    <div class="dmz-quote-layout">
+                        <div class="dmz-quote-config">
+                            <div class="dmz-config-zone">
+                                <h3>刷錢服務與任務加購</h3>
+                                <div class="input-group">
+                                    <label>2000萬刷單數量</label>
+                                    <select id="dmzBundleCount" onchange="updateDmzQuoteSummary()">
+                                        <option value="0">0 單</option>
+                                        <option value="1" selected>1 單</option>
+                                        <option value="2">2 單</option>
+                                        <option value="3">3 單</option>
+                                        <option value="4">4 單</option>
+                                        <option value="5">5 單</option>
+                                    </select>
+                                    <small>每 2000 萬為 1 單，每單 NT$550。</small>
+                                </div>
+
+                                <label class="dmz-check-row">
+                                    <input type="checkbox" id="dmzMissionEscape" onchange="updateDmzQuoteSummary()">
+                                    <span>一場千萬撤離任務</span>
+                                    <strong>單點 NT$350 / 加購 NT$300</strong>
+                                </label>
+                            </div>
+
+                            <div class="dmz-config-divider"></div>
+
+                            <div class="dmz-accessory-section dmz-config-zone">
+                                <h3>特殊配件</h3>
+                                <p>可自由勾選，若符合三件套餐或全套餐，系統會自動採用優惠價。</p>
+                                <div class="dmz-accessory-grid">
+                                    <label class="dmz-accessory-card">
+                                        <input type="checkbox" value="a" onchange="updateDmzQuoteSummary()">
+                                        <span class="dmz-accessory-code">A</span>
+                                        <strong>556 極致彈匣</strong>
+                                        <em>NT$280</em>
+                                    </label>
+                                    <label class="dmz-accessory-card">
+                                        <input type="checkbox" value="b" onchange="updateDmzQuoteSummary()">
+                                        <span class="dmz-accessory-code">B</span>
+                                        <strong>Asval 極致彈匣</strong>
+                                        <em>NT$350</em>
+                                    </label>
+                                    <label class="dmz-accessory-card">
+                                        <input type="checkbox" value="c" onchange="updateDmzQuoteSummary()">
+                                        <span class="dmz-accessory-code">C</span>
+                                        <strong>DRH 極致槍管</strong>
+                                        <em>NT$280</em>
+                                    </label>
+                                    <label class="dmz-accessory-card">
+                                        <input type="checkbox" value="d" onchange="updateDmzQuoteSummary()">
+                                        <span class="dmz-accessory-code">D</span>
+                                        <strong>T19 熱成像鏡</strong>
+                                        <em>NT$320</em>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="dmz-package-pricing">
+                                <h3>套餐價格</h3>
+                                <div class="dmz-package-list">
+                                    <div>A+B+C：NT$850</div>
+                                    <div>A+B+D：NT$900</div>
+                                    <div>A+C+D：NT$800</div>
+                                    <div>B+C+D：NT$900</div>
+                                    <div>A+B+C+D：NT$1100（撞兩把）</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dmz-quote-summary-panel">
+                            <h3>DMZ 下單摘要</h3>
+                            <div class="dmz-summary-stack">
+                                <div class="dmz-summary-box dmz-summary-box-service">
+                                    <h4>刷錢服務 + 任務加購</h4>
+                                    <div class="dmz-summary-row"><span>刷單數量</span><strong id="dmzSummaryBundles">1 單（NT$550）</strong></div>
+                                    <div class="dmz-summary-row"><span>撤離任務</span><strong id="dmzSummaryMission">未加購</strong></div>
+                                    <div class="dmz-summary-row"><span>服務小計</span><strong id="dmzSummaryServiceTotal">NT$550</strong></div>
+                                </div>
+
+                                <div class="dmz-summary-box dmz-summary-box-accessory">
+                                    <h4>特殊配件</h4>
+                                    <div class="dmz-summary-row"><span>配件方案</span><strong id="dmzSummaryAccessoryMode">未選擇</strong></div>
+                                    <div id="dmzSelectedAccessories" class="dmz-selection-tags"></div>
+                                    <div class="dmz-summary-row"><span>配件小計</span><strong id="dmzSummaryAccessoryTotal">NT$0</strong></div>
+                                </div>
+                            </div>
+
+                            <div class="dmz-total-box">
+                                <span>總計（服務 + 配件）</span>
+                                <strong id="dmzSummaryTotal">NT$550</strong>
+                            </div>
+
+                            <div class="purchase-note-box dmz-note-box">
+                                系統會自動整理為訂單頁，後續請將訂單圖片傳送到工作室 LINE 完成對單。
+                            </div>
+
+                            <button class="btn btn-success calc-gold-flash-btn purchase-order-btn" onclick="orderDmzQuoteNow()">🧾 立即下單</button>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div id="dmz-guns" class="page">
+
+                <div class="card dmz-page-card">
+
+                    <div class="dmz-page-hero dmz-guns-hero">
+                        <div>
+                            <h2>🔫 DMZ 槍枝</h2>
+                            <p>這裡會同步顯示後台上架的 DMZ 商品圖片、商品編號、介紹與定價。</p>
+                        </div>
+                        <div class="dmz-hero-note">商品由後台即時上架，請依商品編號洽詢工作室。</div>
+                    </div>
+
+                    <div class="dmz-cart-bar">
+                        <div class="dmz-cart-meta">
+                            <strong id="dmzCartCount">購物車 0 件</strong>
+                            <span id="dmzCartTotal">NT$0</span>
+                        </div>
+                        <div class="dmz-cart-actions">
+                            <button class="btn btn-success btn-small" onclick="openDmzCartModal()">🛒 查看購物車</button>
+                        </div>
+                    </div>
+
+                    <div id="dmzProductGrid" class="dmz-product-grid">
+                        <div class="empty-state">商品載入中...</div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div id="dmz-cart" class="page">
+
+                <div class="card dmz-page-card">
+
+                    <div class="dmz-page-hero dmz-guns-hero">
+                        <div>
+                            <h2>🛒 DMZ 購物車</h2>
+                            <p>已加入的品項會鎖定，單一商品僅能加入一次。</p>
+                        </div>
+                    </div>
+
+                    <div id="dmzCartPageList" class="dmz-cart-page-list">
+                        <div class="empty-state">購物車目前是空的</div>
+                    </div>
+
+                    <div class="dmz-cart-page-footer">
+                        <div class="dmz-cart-page-total">
+                            <span>購物車總計</span>
+                            <strong id="dmzCartPageTotal">NT$0</strong>
+                        </div>
+                        <div class="dmz-cart-page-actions">
+                            <button class="btn btn-small" onclick="showPage('dmz-guns')">← 繼續逛商品</button>
+                            <button class="btn btn-small" onclick="clearDmzCart()">清空購物車</button>
+                            <button class="btn btn-success btn-small" onclick="orderDmzCartNow()">立即下單</button>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
         </div>
 
 
@@ -717,6 +901,8 @@
     <div class="nav-group nav-group-carry">
         <div class="nav-group-title">Carry 專區</div>
         <button class="nav-btn nav-carry" onclick="showPage('calculator')">🚀 多人報價</button>
+        <button class="nav-btn nav-carry" onclick="showPage('dmz-quote')">💼 DMZ報價</button>
+        <button class="nav-btn nav-carry" onclick="showPage('dmz-guns')">🔫 DMZ槍枝</button>
     </div>
 
 </nav>
@@ -729,11 +915,34 @@
 
     </div>
 
+    <footer class="site-support-footer" data-aos="fade-up">
+        <div class="support-footer-head">
+            <h3>與我們聯絡</h3>
+        </div>
+        <div class="support-info-list">
+            <p class="support-info-row"><span class="support-key">LINE 客服：</span><span class="support-value">@104ktglh</span></p>
+            <p class="support-info-row"><span class="support-key">客服信箱：</span><span class="support-value">mxtstudio.tw@gmail.com</span></p>
+            <p class="support-info-row"><span class="support-key">服務時間：</span><span class="support-value">每日 08:00~23:00</span></p>
+        </div>
+    </footer>
+
 </div>
 
 
 
 <!-- ===== Modal 彈出視窗 ===== -->
+
+<div id="dmzImagePreviewModal" class="modal">
+    <div class="modal-content dmz-image-modal-content">
+        <div class="modal-header">
+            <h2 id="dmzImagePreviewTitle">DMZ 商品預覽</h2>
+            <button class="modal-close" onclick="closeDmzImagePreview()">×</button>
+        </div>
+        <div class="dmz-image-modal-body">
+            <img id="dmzImagePreviewImg" src="" alt="DMZ 商品放大預覽">
+        </div>
+    </div>
+</div>
 
 <div id="loginModal" class="modal">
 
@@ -960,6 +1169,31 @@
             <button class="modal-close" onclick="closeEditMemberModal()">×</button>
         </div>
         <div id="editMemberContent"></div>
+    </div>
+</div>
+
+<!-- DMZ 購物車 Modal -->
+<div id="dmzCartModal" class="dmz-cart-modal-overlay" style="display:none" onclick="closeDmzCartModalOverlay(event)">
+    <div class="dmz-cart-modal-box">
+        <div class="dmz-cart-modal-header">
+            <h3>🛒 DMZ 購物車</h3>
+            <button class="dmz-cart-modal-close" onclick="closeDmzCartModal()">✕</button>
+        </div>
+        <div class="dmz-cart-modal-body">
+            <div id="dmzModalCartList" class="dmz-cart-modal-list">
+                <div class="empty-state">購物車目前是空的</div>
+            </div>
+        </div>
+        <div class="dmz-cart-modal-footer">
+            <div class="dmz-cart-modal-total">
+                <span>購物車總計</span>
+                <strong id="dmzModalCartTotal">NT$0</strong>
+            </div>
+            <div class="dmz-cart-modal-actions">
+                <button class="btn btn-small" onclick="clearDmzCart()">清空購物車</button>
+                <button class="btn btn-success btn-small" onclick="orderDmzCartNow()">立即下單</button>
+            </div>
+        </div>
     </div>
 </div>
 

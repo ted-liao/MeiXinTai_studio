@@ -202,6 +202,18 @@ const DEFAULT_CONFIG = {
 let currentCodeSubTab = 'generate';
 let currentMemberSubTab = 'active';
 let currentOrdersCache = [];
+let currentDmzProductsCache = [];
+let pendingDmzProductImageData = '';
+let pendingDmzProductOriginalData = '';
+let isDmzUploadProcessing = false;
+let isDmzUploadSubmitting = false;
+let cancelDmzUploadRequested = false;
+let dmzCreatePreviewTaskToken = 0;
+let dmzSaveTaskToken = 0;
+let editingDmzProductId = null;
+let pendingEditImageData = '';
+let pendingEditOriginalData = '';
+let currentEditProductOriginalData = '';
 
 // 監聽 Auth
 firebase.auth().onAuthStateChanged((user) => {
@@ -305,14 +317,15 @@ function copyToClipboard(text, button) {
 
 async function loadData() {
     try {
-        const [membersSnapshot, codesSnapshot, queueSnapshot, sessionSnapshot, backupSnapshot, configSnapshot, ordersSnapshot] = await Promise.all([
+        const [membersSnapshot, codesSnapshot, queueSnapshot, sessionSnapshot, backupSnapshot, configSnapshot, ordersSnapshot, dmzProductsSnapshot] = await Promise.all([
             database.ref('members').once('value'),
             database.ref('activationCodes').once('value'),
             database.ref('queue').once('value'),
             database.ref('gameSession').once('value'),
             database.ref('lastBackupTime').once('value'),
             database.ref('calculatorConfig').once('value'),
-            database.ref('orders').once('value')
+            database.ref('orders').once('value'),
+            database.ref('dmzProducts').once('value')
         ]);
 
         const membersData = membersSnapshot.val() || {};
@@ -323,6 +336,8 @@ async function loadData() {
         const queue = Object.values(queueData);
         const ordersData = ordersSnapshot.val() || {};
         const orders = Object.keys(ordersData).map(key => ({ id: key, ...ordersData[key] }));
+        const dmzProductsData = dmzProductsSnapshot.val() || {};
+        const dmzProducts = Object.keys(dmzProductsData).map(key => ({ id: key, ...dmzProductsData[key] }));
         
         // 排隊排序
         queue.sort((a, b) => {
@@ -338,19 +353,21 @@ async function loadData() {
         });
 
         orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        dmzProducts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
         return {
             members,
             activationCodes,
             queue,
             orders,
+            dmzProducts,
             gameSession: sessionSnapshot.val(),
             lastBackupTime: backupSnapshot.val(),
             calculatorConfig: configSnapshot.val() || DEFAULT_CONFIG
         };
     } catch (error) {
         console.error('載入資料失敗:', error);
-        return { members: [], activationCodes: [], queue: [], orders: [], gameSession: null, lastBackupTime: null, calculatorConfig: DEFAULT_CONFIG };
+        return { members: [], activationCodes: [], queue: [], orders: [], dmzProducts: [], gameSession: null, lastBackupTime: null, calculatorConfig: DEFAULT_CONFIG };
     }
 }
 
@@ -442,6 +459,7 @@ async function refreshAdminDashboard() {
         renderCodeLists(data.activationCodes);
         renderMemberLists(data.members);
         renderOrderManagement(cleanedOrders);
+        renderProductManagement(data.dmzProducts || []);
         renderBackupInfo(data.lastBackupTime);
         renderCalculatorConfig(data.calculatorConfig);
 
@@ -456,7 +474,7 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.getElementById(`tab-${tabName}`).classList.add('active');
     
-    if (tabName === 'audience' || tabName === 'orders' || tabName === 'boosting') {
+    if (tabName === 'audience' || tabName === 'orders' || tabName === 'products' || tabName === 'boosting') {
         refreshAdminDashboard();
     }
 }
@@ -971,6 +989,473 @@ function escapeHtml(text) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+function formatCurrency(amount) {
+    return `NT$${Number(amount || 0).toLocaleString('zh-TW')}`;
+}
+
+function buildDmzProductCode(products) {
+    const maxNumber = (products || []).reduce((max, product) => {
+        const match = String(product.code || '').match(/DMZ-(\d+)/i);
+        const number = match ? Number(match[1]) : 0;
+        return Math.max(max, number);
+    }, 0);
+    return `DMZ-${String(maxNumber + 1).padStart(3, '0')}`;
+}
+
+function compressImageFile(file, maxWidth = 720, maxHeight = 720, quality = 0.65) {
+    return new Promise((resolve, reject) => {
+        if (!file) {
+            reject(new Error('未選擇圖片'));
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const image = new Image();
+            image.onload = () => {
+                const widthScale = maxWidth / image.width;
+                const heightScale = maxHeight / image.height;
+                const baseScale = Math.min(1, widthScale, heightScale);
+                const scale = baseScale * 0.5;
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(image.width * scale));
+                canvas.height = Math.max(1, Math.round(image.height * scale));
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error('圖片處理失敗'));
+                    return;
+                }
+                ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            image.onerror = () => reject(new Error('圖片讀取失敗'));
+            image.src = reader.result;
+        };
+        reader.onerror = () => reject(new Error('檔案讀取失敗'));
+        reader.readAsDataURL(file);
+    });
+}
+
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        if (!file) {
+            reject(new Error('未選擇檔案'));
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('檔案讀取失敗'));
+        reader.readAsDataURL(file);
+    });
+}
+
+function updateDmzUploadActionState() {
+    const submitBtn = document.getElementById('dmzUploadSubmitBtn');
+    const cancelBtn = document.getElementById('dmzUploadCancelBtn');
+    const isBusy = isDmzUploadProcessing || isDmzUploadSubmitting;
+
+    if (submitBtn) {
+        submitBtn.disabled = isBusy;
+        submitBtn.textContent = isDmzUploadProcessing ? '圖片處理中...' : (isDmzUploadSubmitting ? '上架中...' : '📦 上架商品');
+    }
+
+    if (cancelBtn) {
+        cancelBtn.style.display = isBusy ? 'inline-flex' : 'none';
+        cancelBtn.disabled = !isBusy;
+        cancelBtn.textContent = cancelDmzUploadRequested ? '取消中...' : '取消上傳';
+    }
+}
+
+function cancelDmzProductUpload() {
+    if (!isDmzUploadProcessing && !isDmzUploadSubmitting) return;
+    cancelDmzUploadRequested = true;
+    updateDmzUploadActionState();
+}
+
+function openDmzUploadPreviewModal(mode = 'create') {
+    const modal = document.getElementById('dmzUploadPreviewModal');
+    const modalImage = document.getElementById('dmzUploadPreviewModalImage');
+    if (!modal || !modalImage) return;
+
+    const source = mode === 'edit'
+        ? (pendingEditOriginalData || currentEditProductOriginalData || '')
+        : (pendingDmzProductOriginalData || '');
+
+    if (!source) {
+        alert('目前沒有可檢視的原圖。');
+        return;
+    }
+
+    modalImage.src = source;
+    modal.style.display = 'flex';
+}
+
+function closeDmzUploadPreviewModal(event) {
+    const modal = document.getElementById('dmzUploadPreviewModal');
+    const modalImage = document.getElementById('dmzUploadPreviewModalImage');
+    if (!modal || !modalImage) return;
+    if (event && event.target !== modal) return;
+    modal.style.display = 'none';
+    modalImage.src = '';
+}
+
+function parseOptionalNonNegativeInt(value) {
+    const trimmed = String(value ?? '').trim();
+    if (!trimmed) return null;
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) return NaN;
+    return Math.floor(parsed);
+}
+
+async function previewDmzProductImage(event) {
+    const file = event.target.files && event.target.files[0];
+    const preview = document.getElementById('dmzProductPreview');
+    if (!preview) return;
+
+    const taskToken = ++dmzCreatePreviewTaskToken;
+
+    if (!file) {
+        pendingDmzProductImageData = '';
+        pendingDmzProductOriginalData = '';
+        preview.className = 'dmz-product-preview empty-state';
+        preview.innerHTML = '尚未選擇圖片';
+        isDmzUploadProcessing = false;
+        cancelDmzUploadRequested = false;
+        updateDmzUploadActionState();
+        return;
+    }
+
+    isDmzUploadProcessing = true;
+    cancelDmzUploadRequested = false;
+    updateDmzUploadActionState();
+
+    try {
+        const [originalData, thumbData] = await Promise.all([
+            readFileAsDataURL(file),
+            compressImageFile(file)
+        ]);
+
+        if (taskToken !== dmzCreatePreviewTaskToken || cancelDmzUploadRequested) {
+            pendingDmzProductImageData = '';
+            pendingDmzProductOriginalData = '';
+            preview.className = 'dmz-product-preview empty-state';
+            preview.innerHTML = '已取消圖片處理';
+            return;
+        }
+
+        pendingDmzProductOriginalData = originalData;
+        pendingDmzProductImageData = thumbData;
+        preview.className = 'dmz-product-preview';
+        preview.innerHTML = `<img src="${pendingDmzProductImageData}" alt="DMZ 商品預覽"><span>圖片已準備上架（雙擊可看原圖）</span>`;
+    } catch (error) {
+        console.error('DMZ 圖片預覽失敗:', error);
+        pendingDmzProductImageData = '';
+        pendingDmzProductOriginalData = '';
+        preview.className = 'dmz-product-preview empty-state';
+        preview.innerHTML = '圖片處理失敗，請重新選擇';
+        alert('圖片處理失敗，請重新選擇一張圖片。');
+    } finally {
+        isDmzUploadProcessing = false;
+        cancelDmzUploadRequested = false;
+        updateDmzUploadActionState();
+    }
+}
+
+function resetDmzProductForm() {
+    const imageInput = document.getElementById('dmzProductImage');
+    const nameInput = document.getElementById('dmzProductName');
+    const termBlueInput = document.getElementById('dmzTermBlue');
+    const termRed1Input = document.getElementById('dmzTermRed1');
+    const termRed2Input = document.getElementById('dmzTermRed2');
+    const accessoryOwnedInput = document.getElementById('dmzAccessoryOwned');
+    const accessoryMaxInput = document.getElementById('dmzAccessoryMax');
+    const descInput = document.getElementById('dmzProductDescription');
+    const priceInput = document.getElementById('dmzProductPrice');
+    const preview = document.getElementById('dmzProductPreview');
+
+    pendingDmzProductImageData = '';
+    pendingDmzProductOriginalData = '';
+    isDmzUploadProcessing = false;
+    isDmzUploadSubmitting = false;
+    cancelDmzUploadRequested = false;
+    dmzCreatePreviewTaskToken += 1;
+    dmzSaveTaskToken += 1;
+    if (imageInput) imageInput.value = '';
+    if (nameInput) nameInput.value = '';
+    if (termBlueInput) termBlueInput.value = '';
+    if (termRed1Input) termRed1Input.value = '';
+    if (termRed2Input) termRed2Input.value = '';
+    if (accessoryOwnedInput) accessoryOwnedInput.value = '';
+    if (accessoryMaxInput) accessoryMaxInput.value = '';
+    if (descInput) descInput.value = '';
+    if (priceInput) priceInput.value = '';
+    if (preview) {
+        preview.className = 'dmz-product-preview empty-state';
+        preview.innerHTML = '尚未選擇圖片';
+    }
+    updateDmzUploadActionState();
+}
+
+async function saveDmzProduct() {
+    if (isDmzUploadProcessing || isDmzUploadSubmitting) return;
+
+    const name = document.getElementById('dmzProductName')?.value.trim() || '';
+    const termBlue = document.getElementById('dmzTermBlue')?.value.trim() || '';
+    const termRed1 = document.getElementById('dmzTermRed1')?.value.trim() || '';
+    const termRed2 = document.getElementById('dmzTermRed2')?.value.trim() || '';
+    const accessoryOwned = parseOptionalNonNegativeInt(document.getElementById('dmzAccessoryOwned')?.value);
+    const accessoryMax = parseOptionalNonNegativeInt(document.getElementById('dmzAccessoryMax')?.value);
+    const description = document.getElementById('dmzProductDescription')?.value.trim() || '';
+    const price = Number(document.getElementById('dmzProductPrice')?.value || 0);
+
+    if (!pendingDmzProductImageData) {
+        alert('請先選擇商品圖片。');
+        return;
+    }
+    if (!name) {
+        alert('請輸入產品名稱。');
+        return;
+    }
+    if (!price || price < 0) {
+        alert('請輸入有效的商品定價。');
+        return;
+    }
+    if (Number.isNaN(accessoryOwned) || Number.isNaN(accessoryMax)) {
+        alert('配件數量請輸入 0 以上整數。');
+        return;
+    }
+    if (accessoryOwned !== null && accessoryMax !== null && accessoryOwned > accessoryMax) {
+        alert('目前配件數不可大於最多可裝數。');
+        return;
+    }
+
+    const taskToken = ++dmzSaveTaskToken;
+    cancelDmzUploadRequested = false;
+    isDmzUploadSubmitting = true;
+    updateDmzUploadActionState();
+
+    try {
+        const code = buildDmzProductCode(currentDmzProductsCache);
+        const newRef = database.ref('dmzProducts').push();
+
+        await newRef.set({
+            code,
+            name,
+            termBlue,
+            termRed1,
+            termRed2,
+            accessoryOwned,
+            accessoryMax,
+            description,
+            price,
+            imageData: pendingDmzProductImageData,
+            originalImageData: pendingDmzProductOriginalData || pendingDmzProductImageData,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        });
+
+        if (taskToken !== dmzSaveTaskToken || cancelDmzUploadRequested) {
+            await newRef.remove();
+            alert('已取消上架。');
+            return;
+        }
+
+        resetDmzProductForm();
+        await refreshAdminDashboard();
+    } catch (error) {
+        if (cancelDmzUploadRequested) {
+            alert('已取消上架。');
+            return;
+        }
+        console.error('上架 DMZ 商品失敗:', error);
+        alert('上架商品失敗，請稍後再試。');
+    } finally {
+        isDmzUploadSubmitting = false;
+        cancelDmzUploadRequested = false;
+        updateDmzUploadActionState();
+    }
+}
+
+function editDmzProduct(productId) {
+    const product = currentDmzProductsCache.find((p) => p.id === productId);
+    if (!product) return;
+
+    editingDmzProductId = productId;
+    pendingEditImageData = '';
+    pendingEditOriginalData = '';
+    currentEditProductOriginalData = product.originalImageData || product.imageData || '';
+
+    document.getElementById('dmzEditProductName').value = product.name || '';
+    document.getElementById('dmzEditTermBlue').value = product.termBlue || '';
+    document.getElementById('dmzEditTermRed1').value = product.termRed1 || '';
+    document.getElementById('dmzEditTermRed2').value = product.termRed2 || '';
+    document.getElementById('dmzEditAccessoryOwned').value = Number.isFinite(Number(product.accessoryOwned)) ? Number(product.accessoryOwned) : '';
+    document.getElementById('dmzEditAccessoryMax').value = Number.isFinite(Number(product.accessoryMax)) ? Number(product.accessoryMax) : '';
+    document.getElementById('dmzEditProductDescription').value = product.description || '';
+    document.getElementById('dmzEditProductPrice').value = product.price || '';
+
+    const imageInput = document.getElementById('dmzEditProductImage');
+    if (imageInput) imageInput.value = '';
+
+    const preview = document.getElementById('dmzEditProductPreview');
+    if (preview) {
+        if (product.imageData) {
+            preview.className = 'dmz-product-preview';
+            preview.innerHTML = `<img src="${product.imageData}" alt="DMZ 商品預覽"><span>目前圖片（可重新選擇）</span>`;
+        } else {
+            preview.className = 'dmz-product-preview empty-state';
+            preview.innerHTML = '無圖片';
+        }
+    }
+
+    document.getElementById('dmzEditModal').style.display = 'flex';
+}
+
+function cancelEditDmzProduct() {
+    document.getElementById('dmzEditModal').style.display = 'none';
+    editingDmzProductId = null;
+    pendingEditImageData = '';
+    pendingEditOriginalData = '';
+    currentEditProductOriginalData = '';
+}
+
+function closeDmzEditModal(event) {
+    if (event.target === document.getElementById('dmzEditModal')) {
+        cancelEditDmzProduct();
+    }
+}
+
+async function previewDmzEditImage(event) {
+    const file = event.target.files && event.target.files[0];
+    const preview = document.getElementById('dmzEditProductPreview');
+    if (!preview) return;
+    if (!file) {
+        pendingEditImageData = '';
+        pendingEditOriginalData = '';
+        return;
+    }
+    try {
+        const [originalData, thumbData] = await Promise.all([
+            readFileAsDataURL(file),
+            compressImageFile(file)
+        ]);
+        pendingEditOriginalData = originalData;
+        pendingEditImageData = thumbData;
+        preview.className = 'dmz-product-preview';
+        preview.innerHTML = `<img src="${pendingEditImageData}" alt="DMZ 商品預覽"><span>圖片已準備更新</span>`;
+    } catch (error) {
+        console.error('DMZ 圖片預覽失敗:', error);
+        pendingEditImageData = '';
+        pendingEditOriginalData = '';
+        preview.className = 'dmz-product-preview empty-state';
+        preview.innerHTML = '圖片處理失敗，請重新選擇';
+        alert('圖片處理失敗，請重新選擇一張圖片。');
+    }
+}
+
+async function saveEditDmzProduct() {
+    if (!editingDmzProductId) return;
+    const name = document.getElementById('dmzEditProductName')?.value.trim() || '';
+    const termBlue = document.getElementById('dmzEditTermBlue')?.value.trim() || '';
+    const termRed1 = document.getElementById('dmzEditTermRed1')?.value.trim() || '';
+    const termRed2 = document.getElementById('dmzEditTermRed2')?.value.trim() || '';
+    const accessoryOwned = parseOptionalNonNegativeInt(document.getElementById('dmzEditAccessoryOwned')?.value);
+    const accessoryMax = parseOptionalNonNegativeInt(document.getElementById('dmzEditAccessoryMax')?.value);
+    const description = document.getElementById('dmzEditProductDescription')?.value.trim() || '';
+    const price = Number(document.getElementById('dmzEditProductPrice')?.value || 0);
+
+    if (!name) { alert('請輸入產品名稱。'); return; }
+    if (!price || price < 0) { alert('請輸入有效的商品定價。'); return; }
+    if (Number.isNaN(accessoryOwned) || Number.isNaN(accessoryMax)) { alert('配件數量請輸入 0 以上整數。'); return; }
+    if (accessoryOwned !== null && accessoryMax !== null && accessoryOwned > accessoryMax) { alert('目前配件數不可大於最多可裝數。'); return; }
+
+    showLoading();
+    try {
+        const updateData = {
+            name,
+            termBlue,
+            termRed1,
+            termRed2,
+            accessoryOwned,
+            accessoryMax,
+            description,
+            price,
+            updatedAt: Date.now()
+        };
+        if (pendingEditImageData) {
+            updateData.imageData = pendingEditImageData;
+            updateData.originalImageData = pendingEditOriginalData || pendingEditImageData;
+        }
+        await database.ref(`dmzProducts/${editingDmzProductId}`).update(updateData);
+        cancelEditDmzProduct();
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('編輯 DMZ 商品失敗:', error);
+        alert('儲存商品失敗，請稍後再試。');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function deleteDmzProduct(productId) {
+    const product = currentDmzProductsCache.find((item) => item.id === productId);
+    const confirmed = confirm(`確定要刪除商品 ${product?.code || productId} 嗎？\n此操作無法復原。`);
+    if (!confirmed) return;
+
+    showLoading();
+    try {
+        await database.ref(`dmzProducts/${productId}`).remove();
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('刪除 DMZ 商品失敗:', error);
+        alert('刪除商品失敗，請稍後再試。');
+    } finally {
+        hideLoading();
+    }
+}
+
+function renderProductManagement(products) {
+    currentDmzProductsCache = Array.isArray(products) ? products : [];
+
+    const listEl = document.getElementById('dmzProductList');
+    const countEl = document.getElementById('dmzProductCount');
+    if (!listEl || !countEl) return;
+
+    countEl.textContent = `${currentDmzProductsCache.length} 件`;
+
+    if (!currentDmzProductsCache.length) {
+        listEl.innerHTML = '<div class="empty-state">目前尚未上架任何 DMZ 商品</div>';
+        return;
+    }
+
+    listEl.innerHTML = currentDmzProductsCache.map((product) => `
+        <div class="dmz-admin-item">
+            <img src="${product.imageData}" alt="${escapeHtml(product.code)}" class="dmz-admin-item-image">
+            <div class="dmz-admin-item-body">
+                <h4 class="dmz-admin-item-name">${escapeHtml(product.name || product.code || '未命名商品')}</h4>
+                <div class="dmz-admin-item-top">
+                    <strong>${escapeHtml(product.code || 'DMZ-000')}</strong>
+                    <span>${formatCurrency(product.price)}</span>
+                </div>
+                <p style="margin:0 0 8px; color:#9db3c8; font-size:0.92rem;">
+                    ${escapeHtml(product.termBlue || '-')} / ${escapeHtml(product.termRed1 || '-')} / ${escapeHtml(product.termRed2 || '-')}
+                    ${Number.isFinite(Number(product.accessoryOwned)) || Number.isFinite(Number(product.accessoryMax))
+                        ? ` | ${Number.isFinite(Number(product.accessoryOwned)) ? Number(product.accessoryOwned) : 0}/${Number.isFinite(Number(product.accessoryMax)) ? Number(product.accessoryMax) : 0}配件`
+                        : ''}
+                </p>
+                <p>${escapeHtml(product.description || '').replace(/\n/g, '<br>')}</p>
+                <div class="dmz-admin-item-actions">
+                    <span>建立時間：${formatOrderDateTime(product.createdAt)}</span>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-secondary btn-small" onclick="editDmzProduct('${product.id}')">✏️ 編輯</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteDmzProduct('${product.id}')">刪除</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
 }
 
 function buildOrderItemHtml(order, withActions) {

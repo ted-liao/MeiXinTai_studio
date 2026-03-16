@@ -32,6 +32,10 @@ let calcConfig = null;
 let currentServiceType = 'boost'; 
 let selectedPurchaseTier = 'legend';
 let selectedPurchaseDuration = 30;
+let currentDmzProductsCache = [];
+let currentDmzCartItems = [];
+let dmzProductsRealtimeBound = false;
+let dmzPreviewTapState = { productId: null, time: 0 };
 
 const MEMBER_PURCHASE_OPTIONS = {
     legend: {
@@ -46,6 +50,23 @@ const MEMBER_PURCHASE_OPTIONS = {
         label: '黃金會員',
         prices: { 30: 60, 90: 160, 150: 250 }
     }
+};
+
+const DMZ_BUNDLE_PRICE = 550;
+const DMZ_ESCAPE_MISSION_STANDALONE_PRICE = 350;
+const DMZ_ESCAPE_MISSION_ADDON_PRICE = 300;
+const DMZ_ACCESSORY_OPTIONS = {
+    a: { code: 'A', label: '556 極致彈匣', price: 280 },
+    b: { code: 'B', label: 'Asval 極致彈匣', price: 350 },
+    c: { code: 'C', label: 'DRH 極致槍管', price: 280 },
+    d: { code: 'D', label: 'T19 熱成像鏡', price: 320 }
+};
+const DMZ_COMBO_PRICES = {
+    'a+b+c': { label: 'A+B+C 套餐（撞一把）', price: 850 },
+    'a+b+d': { label: 'A+B+D 套餐（撞一把）', price: 900 },
+    'a+c+d': { label: 'A+C+D 套餐（撞一把）', price: 800 },
+    'b+c+d': { label: 'B+C+D 套餐（撞一把）', price: 900 },
+    'a+b+c+d': { label: 'A+B+C+D 全套餐（撞兩把）', price: 1100 }
 };
 
 // 預設計算機設定 (備用)
@@ -175,6 +196,19 @@ function copyToClipboard(text, button) {
     }).catch(() => {
         alert(trans.copy_fail || 'Copy failed');
     });
+}
+
+function escapeHtml(text) {
+    return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatPrice(amount) {
+    return `NT$${Number(amount || 0).toLocaleString('zh-TW')}`;
 }
 
 function renderHomeMemberList(elementId, members) {
@@ -347,6 +381,352 @@ function buildMembershipOrderData() {
         total: price,
         note: '確認付款後，工作室會提供對應會員兌換碼。'
     };
+}
+
+function getSelectedDmzAccessoryKeys() {
+    return Array.from(document.querySelectorAll('.dmz-accessory-card input:checked'))
+        .map((input) => input.value)
+        .sort();
+}
+
+function getDmzAccessoryPricing(selectedKeys) {
+    if (!selectedKeys.length) {
+        return { price: 0, label: '未選擇', detail: [] };
+    }
+
+    const comboKey = selectedKeys.join('+');
+    const combo = DMZ_COMBO_PRICES[comboKey];
+    const detail = selectedKeys.map((key) => DMZ_ACCESSORY_OPTIONS[key]).filter(Boolean);
+
+    if (combo) {
+        return { price: combo.price, label: combo.label, detail };
+    }
+
+    const total = detail.reduce((sum, item) => sum + item.price, 0);
+    const label = detail.length === 1 ? detail[0].label : `單點配件 ${detail.map((item) => item.code).join('+')}`;
+    return { price: total, label, detail };
+}
+
+function getDmzMissionPrice(bundleCount, hasMission) {
+    if (!hasMission) return 0;
+    return bundleCount > 0 ? DMZ_ESCAPE_MISSION_ADDON_PRICE : DMZ_ESCAPE_MISSION_STANDALONE_PRICE;
+}
+
+function updateDmzQuoteSummary() {
+    const bundleCount = Number(document.getElementById('dmzBundleCount')?.value || 0);
+    const hasMission = Boolean(document.getElementById('dmzMissionEscape')?.checked);
+    const accessoryKeys = getSelectedDmzAccessoryKeys();
+    const accessoryPricing = getDmzAccessoryPricing(accessoryKeys);
+
+    const bundleTotal = bundleCount * DMZ_BUNDLE_PRICE;
+    const missionTotal = getDmzMissionPrice(bundleCount, hasMission);
+    const serviceTotal = bundleTotal + missionTotal;
+    const total = bundleTotal + missionTotal + accessoryPricing.price;
+
+    const bundleEl = document.getElementById('dmzSummaryBundles');
+    const missionEl = document.getElementById('dmzSummaryMission');
+    const accessoryModeEl = document.getElementById('dmzSummaryAccessoryMode');
+    const serviceTotalEl = document.getElementById('dmzSummaryServiceTotal');
+    const accessoryTotalEl = document.getElementById('dmzSummaryAccessoryTotal');
+    const totalEl = document.getElementById('dmzSummaryTotal');
+    const tagsEl = document.getElementById('dmzSelectedAccessories');
+
+    if (bundleEl) bundleEl.textContent = bundleCount > 0 ? `${bundleCount} 單（${formatPrice(bundleTotal)}）` : '未選擇';
+    if (missionEl) missionEl.textContent = hasMission
+        ? `${bundleCount > 0 ? '加購價' : '單點價'}（${formatPrice(missionTotal)}）`
+        : '未加購';
+    if (accessoryModeEl) accessoryModeEl.textContent = accessoryPricing.label;
+    if (serviceTotalEl) serviceTotalEl.textContent = formatPrice(serviceTotal);
+    if (accessoryTotalEl) accessoryTotalEl.textContent = formatPrice(accessoryPricing.price);
+    if (totalEl) totalEl.textContent = formatPrice(total);
+
+    if (tagsEl) {
+        tagsEl.innerHTML = accessoryPricing.detail.length
+            ? accessoryPricing.detail.map((item) => `<span class="dmz-selection-tag">${item.code}. ${escapeHtml(item.label)}</span>`).join('')
+            : '<span class="dmz-selection-tag is-empty">尚未選擇特殊配件</span>';
+    }
+}
+
+function buildDmzQuoteOrderData() {
+    const bundleCount = Number(document.getElementById('dmzBundleCount')?.value || 0);
+    const hasMission = Boolean(document.getElementById('dmzMissionEscape')?.checked);
+    const accessoryKeys = getSelectedDmzAccessoryKeys();
+    const accessoryPricing = getDmzAccessoryPricing(accessoryKeys);
+
+    const bundleTotal = bundleCount * DMZ_BUNDLE_PRICE;
+    const missionTotal = getDmzMissionPrice(bundleCount, hasMission);
+    const total = bundleTotal + missionTotal + accessoryPricing.price;
+
+    if (total <= 0) {
+        alert('請至少選擇一項 DMZ 服務或特殊配件，再進行下單。');
+        return null;
+    }
+
+    const items = [];
+    if (bundleCount > 0) items.push({ label: '2000萬刷單', value: `${bundleCount} 單 (${formatPrice(bundleTotal)})` });
+    if (hasMission) items.push({
+        label: '千萬撤離任務',
+        value: `1 場（${bundleCount > 0 ? '加購價' : '單點價'} ${formatPrice(missionTotal)}）`
+    });
+    if (accessoryPricing.price > 0) {
+        items.push({ label: '特殊配件方案', value: `${accessoryPricing.label} (${formatPrice(accessoryPricing.price)})` });
+        accessoryPricing.detail.forEach((item) => {
+            items.push({ label: `配件 ${item.code}`, value: item.label });
+        });
+    }
+
+    return {
+        orderType: 'dmz-quote',
+        title: 'DMZ 報價確認',
+        subtitle: 'DMZ 服務下單明細',
+        items,
+        total: formatPrice(total),
+        note: 'DMZ 服務與配件價格已依所選方案自動整理，請完成訂單後聯繫工作室安排。'
+    };
+}
+
+function orderDmzQuoteNow() {
+    const orderData = buildDmzQuoteOrderData();
+    if (!orderData) return;
+    confirmAndOpenOrderPage(orderData);
+}
+
+function getDmzProductById(productId) {
+    return currentDmzProductsCache.find((product) => product.id === productId);
+}
+
+function isDmzProductInCart(productId) {
+    return currentDmzCartItems.some((item) => item.id === productId);
+}
+
+function getDmzCartTotals() {
+    const totalCount = currentDmzCartItems.length;
+    const totalPrice = currentDmzCartItems.reduce((sum, item) => sum + Number(item.price || 0), 0);
+    return { totalCount, totalPrice };
+}
+
+function openDmzImagePreview(productId) {
+    const product = getDmzProductById(productId);
+    const modal = document.getElementById('dmzImagePreviewModal');
+    const image = document.getElementById('dmzImagePreviewImg');
+    const title = document.getElementById('dmzImagePreviewTitle');
+    if (!product || !modal || !image || !title) return;
+
+    title.textContent = `${product.code || 'DMZ 商品'} 圖片預覽`;
+    image.src = product.originalImageData || product.imageData || '';
+    image.alt = product.code || 'DMZ 商品圖片';
+    modal.classList.add('active');
+}
+
+function handleDmzImagePreviewTap(event, productId) {
+    if (event) event.preventDefault();
+    const now = Date.now();
+    const isDoubleTap = dmzPreviewTapState.productId === productId && (now - dmzPreviewTapState.time) <= 380;
+
+    dmzPreviewTapState = { productId, time: now };
+    if (isDoubleTap) {
+        dmzPreviewTapState = { productId: null, time: 0 };
+        openDmzImagePreview(productId);
+    }
+}
+
+function closeDmzImagePreview() {
+    const modal = document.getElementById('dmzImagePreviewModal');
+    if (modal) modal.classList.remove('active');
+}
+
+function updateDmzCartSummary() {
+    const countEl = document.getElementById('dmzCartCount');
+    const totalEl = document.getElementById('dmzCartTotal');
+    const pageTotalEl = document.getElementById('dmzCartPageTotal');
+    const modalTotalEl = document.getElementById('dmzModalCartTotal');
+    const { totalCount, totalPrice } = getDmzCartTotals();
+
+    if (countEl) countEl.textContent = `購物車 ${totalCount} 件`;
+    if (totalEl) totalEl.textContent = formatPrice(totalPrice);
+    if (pageTotalEl) pageTotalEl.textContent = formatPrice(totalPrice);
+    if (modalTotalEl) modalTotalEl.textContent = formatPrice(totalPrice);
+}
+
+function addDmzProductToCart(productId) {
+    const product = getDmzProductById(productId);
+    if (!product) return;
+
+    if (isDmzProductInCart(productId)) {
+        return;
+    }
+
+    currentDmzCartItems.push({
+        id: product.id,
+        code: product.code || 'DMZ-000',
+        name: product.name || product.code || 'DMZ 商品',
+        termBlue: product.termBlue || '',
+        termRed1: product.termRed1 || '',
+        termRed2: product.termRed2 || '',
+        accessoryOwned: Number.isFinite(Number(product.accessoryOwned)) ? Number(product.accessoryOwned) : null,
+        accessoryMax: Number.isFinite(Number(product.accessoryMax)) ? Number(product.accessoryMax) : null,
+        description: product.description || '',
+        price: Number(product.price || 0),
+        imageData: product.imageData || ''
+    });
+
+    updateDmzCartSummary();
+    renderDmzProductGrid(currentDmzProductsCache);
+    renderDmzCartPage();
+}
+
+function clearDmzCart() {
+    currentDmzCartItems = [];
+    updateDmzCartSummary();
+    renderDmzProductGrid(currentDmzProductsCache);
+    renderDmzCartPage();
+}
+
+function removeDmzProductFromCart(productId) {
+    if (!confirm('確認變更購買項目？')) return;
+    currentDmzCartItems = currentDmzCartItems.filter((item) => item.id !== productId);
+    updateDmzCartSummary();
+    renderDmzProductGrid(currentDmzProductsCache);
+    renderDmzCartPage();
+}
+
+function buildDmzCartOrderData() {
+    if (!currentDmzCartItems.length) {
+        alert('購物車目前是空的，請先加入商品。');
+        return null;
+    }
+
+    const items = [];
+    let total = 0;
+
+    currentDmzCartItems.forEach((item) => {
+        const lineTotal = Number(item.price || 0);
+        total += lineTotal;
+        items.push({
+            label: `${item.name || item.code}`,
+            value: `${item.description || 'DMZ 槍枝商品'}（${formatPrice(lineTotal)}）`
+        });
+    });
+
+    return {
+        orderType: 'dmz-guns-cart',
+        title: 'DMZ 槍枝購物車確認',
+        subtitle: 'DMZ 商品下單明細',
+        items,
+        total: formatPrice(total),
+        note: '請將此訂單傳送給工作室，確認貨況與交付流程。'
+    };
+}
+
+function orderDmzCartNow() {
+    const orderData = buildDmzCartOrderData();
+    if (!orderData) return;
+    confirmAndOpenOrderPage(orderData);
+}
+
+function renderDmzCartPage() {
+    const list = document.getElementById('dmzModalCartList');
+    if (!list) return;
+
+    if (!currentDmzCartItems.length) {
+        list.innerHTML = '<div class="empty-state">購物車目前是空的，先去 DMZ 槍枝挑選商品吧。</div>';
+        return;
+    }
+
+    list.innerHTML = currentDmzCartItems.map((item) => `
+        <article class="dmz-cart-item-card">
+            ${item.imageData ? `<img src="${item.imageData}" alt="${escapeHtml(item.code)}" class="dmz-cart-item-thumb">` : ''}
+            <div class="dmz-cart-item-main">
+                <strong class="dmz-cart-item-name">${escapeHtml(item.name || item.code || 'DMZ 商品')}</strong>
+                <span class="dmz-product-code">${escapeHtml(item.code || 'DMZ-000')}</span>
+                ${(Number.isFinite(Number(item.accessoryOwned)) || Number.isFinite(Number(item.accessoryMax)))
+                    ? `<p class="dmz-product-attachment">配件: ${Number.isFinite(Number(item.accessoryOwned)) ? Number(item.accessoryOwned) : 0}/${Number.isFinite(Number(item.accessoryMax)) ? Number(item.accessoryMax) : 0}</p>`
+                    : ''}
+                <p>${escapeHtml(item.description || 'DMZ 槍枝商品')}</p>
+            </div>
+            <div class="dmz-cart-item-side">
+                <strong>${formatPrice(item.price)}</strong>
+                <button class="btn btn-small" onclick="removeDmzProductFromCart('${item.id}')">移除</button>
+            </div>
+        </article>
+    `).join('');
+}
+
+function openDmzCartModal() {
+    renderDmzCartPage();
+    document.getElementById('dmzCartModal').style.display = 'flex';
+}
+
+function closeDmzCartModal() {
+    document.getElementById('dmzCartModal').style.display = 'none';
+}
+
+function closeDmzCartModalOverlay(event) {
+    if (event.target === document.getElementById('dmzCartModal')) closeDmzCartModal();
+}
+
+function renderDmzProductGrid(products = []) {
+    const grid = document.getElementById('dmzProductGrid');
+    if (!grid) return;
+
+    if (!products.length) {
+        grid.innerHTML = '<div class="empty-state">目前尚未上架 DMZ 槍枝商品</div>';
+        return;
+    }
+
+    grid.innerHTML = products.map((product) => {
+        const selected = isDmzProductInCart(product.id);
+        return `
+        <article class="dmz-product-card ${selected ? 'selected' : ''}">
+            <h3 class="dmz-product-name dmz-product-name-top">${escapeHtml(product.name || product.code || 'DMZ 商品')}</h3>
+            <div class="dmz-product-image-wrap" onclick="handleDmzImagePreviewTap(event, '${product.id}')" title="雙擊圖片可放大檢視">
+                <img src="${product.imageData}" alt="${escapeHtml(product.code)}" class="dmz-product-image">
+                ${selected ? '<span class="dmz-selected-badge">已加入購物車</span>' : ''}
+            </div>
+            <div class="dmz-product-body">
+                <div class="dmz-product-meta">
+                    <span class="dmz-product-code">${escapeHtml(product.code || 'DMZ-000')}</span>
+                    <strong class="dmz-product-price">${formatPrice(product.price)}</strong>
+                </div>
+                <div class="dmz-product-terms">
+                    ${product.termBlue ? `<span class="dmz-product-term dmz-product-term-blue">${escapeHtml(product.termBlue)}</span>` : ''}
+                    ${product.termRed1 ? `<span class="dmz-product-term dmz-product-term-red">${escapeHtml(product.termRed1)}</span>` : ''}
+                    ${product.termRed2 ? `<span class="dmz-product-term dmz-product-term-red">${escapeHtml(product.termRed2)}</span>` : ''}
+                </div>
+                ${(Number.isFinite(Number(product.accessoryOwned)) || Number.isFinite(Number(product.accessoryMax)))
+                    ? `<p class="dmz-product-attachment">配件: ${Number.isFinite(Number(product.accessoryOwned)) ? Number(product.accessoryOwned) : 0}/${Number.isFinite(Number(product.accessoryMax)) ? Number(product.accessoryMax) : 0}</p>`
+                    : ''}
+                <p class="dmz-product-description">${escapeHtml(product.description || '尚未提供商品描述').replace(/\n/g, '<br>')}</p>
+                <button class="btn btn-small dmz-add-cart-btn ${selected ? 'is-disabled' : ''}" onclick="addDmzProductToCart('${product.id}')" ${selected ? 'disabled' : ''}>${selected ? '已加入購物車' : '加入購物車'}</button>
+            </div>
+        </article>
+    `;
+    }).join('');
+}
+
+function bindDmzProductsRealtime() {
+    if (dmzProductsRealtimeBound) return;
+
+    dmzProductsRealtimeBound = true;
+    database.ref('dmzProducts').on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        currentDmzProductsCache = Object.keys(data)
+            .map((key) => ({ id: key, ...data[key] }))
+            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+        currentDmzCartItems = currentDmzCartItems.filter((cartItem) =>
+            currentDmzProductsCache.some((product) => product.id === cartItem.id)
+        );
+
+        renderDmzProductGrid(currentDmzProductsCache);
+        renderDmzCartPage();
+        updateDmzCartSummary();
+    }, (error) => {
+        console.error('監聽 DMZ 商品失敗:', error);
+        renderDmzProductGrid([]);
+        renderDmzCartPage();
+        updateDmzCartSummary();
+    });
 }
 
 function buildQuoteOrderData() {
@@ -1459,6 +1839,17 @@ function showPage(pageId) {
         stopAutoRefresh();
         if(typeof renderPricingTables === 'function') renderPricingTables();
         if(typeof updateWeekDisplay === 'function') updateWeekDisplay();
+    } else if (pageId === 'dmz-quote') {
+        stopAutoRefresh();
+        updateDmzQuoteSummary();
+    } else if (pageId === 'dmz-guns') {
+        stopAutoRefresh();
+        updateDmzCartSummary();
+        renderDmzProductGrid(currentDmzProductsCache);
+    } else if (pageId === 'dmz-cart') {
+        stopAutoRefresh();
+        updateDmzCartSummary();
+        renderDmzCartPage();
     } else if (pageId === 'purchase') {
         stopAutoRefresh();
         updatePurchasePage();
@@ -1500,6 +1891,13 @@ function openForgotPasswordModal() {
 }
 function closeForgotPasswordModal() { document.getElementById('forgotPasswordModal').classList.remove('active'); forgotPasswordUser = null; }
 function closeEditMemberModal() { document.getElementById('editMemberModal').classList.remove('active'); editingMember = null; }
+
+window.addEventListener('click', (event) => {
+    const dmzModal = document.getElementById('dmzImagePreviewModal');
+    if (dmzModal && event.target === dmzModal) {
+        closeDmzImagePreview();
+    }
+});
 
 // ==========================================
 // ▼▼▼ 動作函式整合包 (登入/註冊/登出) ▼▼▼
@@ -1669,8 +2067,12 @@ async function initialize() {
 
         updateUserSection();
         await loadHomeMemberLists();
+        bindDmzProductsRealtime();
         initHomeMemberTilt();
         updatePurchasePage();
+        updateDmzQuoteSummary();
+        updateDmzCartSummary();
+        renderDmzCartPage();
         startGlobalCountdown();
         
         function setupEnterListener(inputId, callback) {
