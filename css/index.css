@@ -3786,7 +3786,7 @@ button[onclick="joinQueue()"] {
     flex-direction: column;
     height: 100%;
     border-radius: 18px;
-    background: rgba(7, 17, 34, 0.92);
+    background: rgba(12, 35, 70, 0.95);
     border: 1px solid rgba(120, 178, 255, 0.18);
     box-shadow: 0 16px 26px rgba(0, 0, 0, 0.24);
 }
@@ -3872,9 +3872,8 @@ button[onclick="joinQueue()"] {
 
 .dmz-product-description {
     margin: 0;
-    color: #bfd0df;
+    color: #e0f0ff;
     line-height: 1.7;
-    margin-bottom: 10px;
 }
 
 .dmz-product-terms {
@@ -3895,28 +3894,41 @@ button[onclick="joinQueue()"] {
 }
 
 .dmz-product-term-blue {
-    color: #b9ecff;
-    background: rgba(34, 151, 255, 0.22);
-    border: 1px solid rgba(116, 198, 255, 0.45);
+    color: #ffffff;
+    background: rgba(34, 151, 255, 0.45);
+    border: 1px solid rgba(116, 198, 255, 0.65);
 }
 
 .dmz-product-term-red {
-    color: #ffd3d3;
-    background: rgba(220, 58, 58, 0.24);
-    border: 1px solid rgba(255, 128, 128, 0.42);
+    color: #ffffff;
+    background: rgba(220, 58, 58, 0.48);
+    border: 1px solid rgba(255, 128, 128, 0.68);
 }
 
 .dmz-product-attachment {
-    margin: 0 0 10px;
+    margin: 0;
     color: #ffe26a;
     font-weight: 700;
     font-size: 0.95rem;
     text-shadow: 0 0 8px rgba(255, 210, 74, 0.75), 0 0 18px rgba(255, 210, 74, 0.45);
 }
 
+.dmz-product-bottom {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+@media (min-width: 769px) {
+    .dmz-product-attachment,
+    .dmz-product-description {
+        text-align: center;
+    }
+}
+
 .dmz-add-cart-btn {
     width: 100%;
-    margin-top: auto;
     border-color: #78b6ff;
     color: #dff0ff;
     background: rgba(74, 138, 255, 0.16);

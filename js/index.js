@@ -699,11 +699,13 @@ function renderDmzProductGrid(products = []) {
                     ${product.termRed1 ? `<span class="dmz-product-term dmz-product-term-red">${escapeHtml(product.termRed1)}</span>` : ''}
                     ${product.termRed2 ? `<span class="dmz-product-term dmz-product-term-red">${escapeHtml(product.termRed2)}</span>` : ''}
                 </div>
-                ${(Number.isFinite(Number(product.accessoryOwned)) || Number.isFinite(Number(product.accessoryMax)))
-                    ? `<p class="dmz-product-attachment">配件: ${Number.isFinite(Number(product.accessoryOwned)) ? Number(product.accessoryOwned) : 0}/${Number.isFinite(Number(product.accessoryMax)) ? Number(product.accessoryMax) : 0}</p>`
-                    : ''}
-                ${product.description ? `<p class="dmz-product-description">${escapeHtml(product.description).replace(/\n/g, '<br>')}</p>` : ''}
-                <button class="btn btn-small dmz-add-cart-btn ${selected ? 'is-disabled' : ''}" onclick="addDmzProductToCart('${product.id}')" ${selected ? 'disabled' : ''}>${selected ? '已加入購物車' : '加入購物車'}</button>
+                <div class="dmz-product-bottom">
+                    ${product.description ? `<p class="dmz-product-description">${escapeHtml(product.description).replace(/\n/g, '<br>')}</p>` : ''}
+                    ${(Number.isFinite(Number(product.accessoryOwned)) || Number.isFinite(Number(product.accessoryMax)))
+                        ? `<p class="dmz-product-attachment">配件: ${Number.isFinite(Number(product.accessoryOwned)) ? Number(product.accessoryOwned) : 0}/${Number.isFinite(Number(product.accessoryMax)) ? Number(product.accessoryMax) : 0}</p>`
+                        : ''}
+                    <button class="btn btn-small dmz-add-cart-btn ${selected ? 'is-disabled' : ''}" onclick="addDmzProductToCart('${product.id}')" ${selected ? 'disabled' : ''}>${selected ? '已加入購物車' : '加入購物車'}</button>
+                </div>
             </div>
         </article>
     `;
@@ -1506,13 +1508,17 @@ function calculate() {
         return;
     }
 
-    // 限制代打上限 14000 分、護航上限 12000 分
-    if (currentServiceType === 'boost' && current > 14000) {
-        alert("⚠️ 目前分數超過代打上限（14000分）。\n\n超過 14000 分的代打需求，請直接私訊主播詢問！");
+    // 限制上限：代打最高 14000 分、護航最高 12000 分
+    const maxAllowedScore = currentServiceType === 'boost' ? 14000 : 12000;
+    const serviceLabel = currentServiceType === 'boost' ? '代打' : '護航';
+
+    if (current > maxAllowedScore) {
+        alert(`⚠️ 目前分數超過${serviceLabel}上限（${maxAllowedScore}分）。\n\n超過 ${maxAllowedScore} 分的${serviceLabel}需求，請直接私訊主播詢問！`);
         return;
     }
-    if (currentServiceType !== 'boost' && current > 12000) {
-        alert("⚠️ 目前分數超過護航上限（12000分）。\n\n超過 12000 分的護航需求，請直接私訊主播詢問！");
+
+    if (target > maxAllowedScore) {
+        alert(`⚠️ 目標分數超過${serviceLabel}上限（${maxAllowedScore}分）。\n\n請將目標分數調整至 ${maxAllowedScore} 分以下，或直接私訊主播詢問！`);
         return;
     }
 
