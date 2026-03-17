@@ -642,7 +642,7 @@ function renderDmzCartPage() {
                 ${(Number.isFinite(Number(item.accessoryOwned)) || Number.isFinite(Number(item.accessoryMax)))
                     ? `<p class="dmz-product-attachment">配件: ${Number.isFinite(Number(item.accessoryOwned)) ? Number(item.accessoryOwned) : 0}/${Number.isFinite(Number(item.accessoryMax)) ? Number(item.accessoryMax) : 0}</p>`
                     : ''}
-                <p>${escapeHtml(item.description || 'DMZ 槍枝商品')}</p>
+                ${item.description ? `<p>${escapeHtml(item.description).replace(/\n/g, '<br>')}</p>` : ''}
             </div>
             <div class="dmz-cart-item-side">
                 <strong>${formatPrice(item.price)}</strong>
@@ -663,6 +663,12 @@ function closeDmzCartModal() {
 
 function closeDmzCartModalOverlay(event) {
     if (event.target === document.getElementById('dmzCartModal')) closeDmzCartModal();
+}
+
+function toggleDmzFloatingCartBar(pageId) {
+    const floatingCartBar = document.getElementById('dmzFloatingCartBar');
+    if (!floatingCartBar) return;
+    floatingCartBar.style.display = pageId === 'dmz-guns' ? 'flex' : 'none';
 }
 
 function renderDmzProductGrid(products = []) {
@@ -696,7 +702,7 @@ function renderDmzProductGrid(products = []) {
                 ${(Number.isFinite(Number(product.accessoryOwned)) || Number.isFinite(Number(product.accessoryMax)))
                     ? `<p class="dmz-product-attachment">配件: ${Number.isFinite(Number(product.accessoryOwned)) ? Number(product.accessoryOwned) : 0}/${Number.isFinite(Number(product.accessoryMax)) ? Number(product.accessoryMax) : 0}</p>`
                     : ''}
-                <p class="dmz-product-description">${escapeHtml(product.description || '尚未提供商品描述').replace(/\n/g, '<br>')}</p>
+                ${product.description ? `<p class="dmz-product-description">${escapeHtml(product.description).replace(/\n/g, '<br>')}</p>` : ''}
                 <button class="btn btn-small dmz-add-cart-btn ${selected ? 'is-disabled' : ''}" onclick="addDmzProductToCart('${product.id}')" ${selected ? 'disabled' : ''}>${selected ? '已加入購物車' : '加入購物車'}</button>
             </div>
         </article>
@@ -1802,6 +1808,7 @@ function updateUserSection() {
 // --- [核心頁面切換邏輯] ---
 function showPage(pageId) {
     currentPage = pageId;
+    toggleDmzFloatingCartBar(pageId);
     
     // 1. 切換分頁內容顯示
     document.querySelectorAll('.page').forEach(p => {

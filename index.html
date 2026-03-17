@@ -86,7 +86,7 @@
 
                 <div class="site-home-intro" data-aos="fade-up">
                     <h2>🏠 歡迎來到玫心泰遊戲工作室</h2>
-                    <p class="site-home-lead">這裡是主播專屬服務平台，整合會員註冊、排隊管理、會員購買與多人報價，讓你從了解方案到下單都能一次完成。</p>
+                    <p class="site-home-lead">這裡是主播專屬服務平台，整合會員註冊、排隊管理、會員購買、多人報價、DMZ報價與 DMZ槍枝，讓你從了解方案到下單都能一次完成。</p>
 
                     <div class="site-home-sections">
                         <div class="site-home-zone site-home-zone-subs">
@@ -113,6 +113,14 @@
                                 <div class="site-home-item">
                                     <h4>多人報價</h4>
                                     <p>輸入目前分數與目標分數，自動計算代打或護航的透明價格。</p>
+                                </div>
+                                <div class="site-home-item">
+                                    <h4>DMZ報價</h4>
+                                    <p>快速整理 DMZ 服務與特殊配件費用，讓下單內容更清楚。</p>
+                                </div>
+                                <div class="site-home-item">
+                                    <h4>DMZ槍枝</h4>
+                                    <p>查看後台即時上架的槍枝商品、詞條、配件數與價格資訊。</p>
                                 </div>
                             </div>
                         </div>
@@ -830,16 +838,6 @@
                         <div class="dmz-hero-note">商品由後台即時上架，請依商品編號洽詢工作室。</div>
                     </div>
 
-                    <div class="dmz-cart-bar">
-                        <div class="dmz-cart-meta">
-                            <strong id="dmzCartCount">購物車 0 件</strong>
-                            <span id="dmzCartTotal">NT$0</span>
-                        </div>
-                        <div class="dmz-cart-actions">
-                            <button class="btn btn-success btn-small" onclick="openDmzCartModal()">🛒 查看購物車</button>
-                        </div>
-                    </div>
-
                     <div id="dmzProductGrid" class="dmz-product-grid">
                         <div class="empty-state">商品載入中...</div>
                     </div>
@@ -906,6 +904,16 @@
     </div>
 
 </nav>
+
+<div id="dmzFloatingCartBar" class="dmz-cart-bar dmz-cart-bar-bottom" style="display:none;">
+    <div class="dmz-cart-meta">
+        <strong id="dmzCartCount">購物車 0 件</strong>
+        <span id="dmzCartTotal">NT$0</span>
+    </div>
+    <div class="dmz-cart-actions">
+        <button class="btn btn-success btn-small dmz-cart-entry-btn" onclick="openDmzCartModal()">🛒 查看購物車</button>
+    </div>
+</div>
 
 
 

@@ -1321,12 +1321,6 @@ function cancelEditDmzProduct() {
     currentEditProductOriginalData = '';
 }
 
-function closeDmzEditModal(event) {
-    if (event.target === document.getElementById('dmzEditModal')) {
-        cancelEditDmzProduct();
-    }
-}
-
 async function previewDmzEditImage(event) {
     const file = event.target.files && event.target.files[0];
     const preview = document.getElementById('dmzEditProductPreview');
