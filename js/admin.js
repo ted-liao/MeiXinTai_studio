@@ -214,6 +214,31 @@ let editingDmzProductId = null;
 let pendingEditImageData = '';
 let pendingEditOriginalData = '';
 let currentEditProductOriginalData = '';
+let currentDmzMissionsCache = [];
+let pendingMissionImageData = '';
+let pendingMissionOriginalData = '';
+let isMissionUploadProcessing = false;
+let isMissionUploadSubmitting = false;
+let cancelMissionUploadRequested = false;
+let missionCreatePreviewTaskToken = 0;
+let missionSaveTaskToken = 0;
+let editingMissionId = null;
+let pendingEditMissionImageData = '';
+let pendingEditMissionOriginalData = '';
+let currentEditMissionOriginalData = '';
+
+// ===== 新的三層結構相關變量 =====
+let currentWeeksCache = [];
+let currentTaskTitlesCache = [];
+let currentTaskContentsCache = [];
+let pendingWeekImageData = '';
+let pendingWeekOriginalData = '';
+let pendingTaskTitleImageData = '';
+let pendingTaskTitleOriginalData = '';
+let pendingTaskContentImageData = '';
+let pendingTaskContentOriginalData = '';
+let selectedWeekForTaskTitle = null;
+let selectedTaskTitleForContent = null;
 
 // 監聽 Auth
 firebase.auth().onAuthStateChanged((user) => {
@@ -317,7 +342,7 @@ function copyToClipboard(text, button) {
 
 async function loadData() {
     try {
-        const [membersSnapshot, codesSnapshot, queueSnapshot, sessionSnapshot, backupSnapshot, configSnapshot, ordersSnapshot, dmzProductsSnapshot] = await Promise.all([
+        const [membersSnapshot, codesSnapshot, queueSnapshot, sessionSnapshot, backupSnapshot, configSnapshot, ordersSnapshot, dmzProductsSnapshot, weeksSnapshot, taskTitlesSnapshot, taskContentsSnapshot] = await Promise.all([
             database.ref('members').once('value'),
             database.ref('activationCodes').once('value'),
             database.ref('queue').once('value'),
@@ -325,7 +350,10 @@ async function loadData() {
             database.ref('lastBackupTime').once('value'),
             database.ref('calculatorConfig').once('value'),
             database.ref('orders').once('value'),
-            database.ref('dmzProducts').once('value')
+            database.ref('dmzProducts').once('value'),
+            database.ref('dmzMissionWeeks').once('value'),
+            database.ref('dmzMissionTaskTitles').once('value'),
+            database.ref('dmzMissionTaskContents').once('value')
         ]);
 
         const membersData = membersSnapshot.val() || {};
@@ -338,6 +366,14 @@ async function loadData() {
         const orders = Object.keys(ordersData).map(key => ({ id: key, ...ordersData[key] }));
         const dmzProductsData = dmzProductsSnapshot.val() || {};
         const dmzProducts = Object.keys(dmzProductsData).map(key => ({ id: key, ...dmzProductsData[key] }));
+        
+        // 新的三層任務結構
+        const weeksData = weeksSnapshot.val() || {};
+        const weeks = Object.keys(weeksData).map(key => ({ id: key, ...weeksData[key] }));
+        const taskTitlesData = taskTitlesSnapshot.val() || {};
+        const taskTitles = Object.keys(taskTitlesData).map(key => ({ id: key, ...taskTitlesData[key] }));
+        const taskContentsData = taskContentsSnapshot.val() || {};
+        const taskContents = Object.keys(taskContentsData).map(key => ({ id: key, ...taskContentsData[key] }));
         
         // 排隊排序
         queue.sort((a, b) => {
@@ -361,13 +397,16 @@ async function loadData() {
             queue,
             orders,
             dmzProducts,
+            weeks,
+            taskTitles,
+            taskContents,
             gameSession: sessionSnapshot.val(),
             lastBackupTime: backupSnapshot.val(),
             calculatorConfig: configSnapshot.val() || DEFAULT_CONFIG
         };
     } catch (error) {
         console.error('載入資料失敗:', error);
-        return { members: [], activationCodes: [], queue: [], orders: [], dmzProducts: [], gameSession: null, lastBackupTime: null, calculatorConfig: DEFAULT_CONFIG };
+        return { members: [], activationCodes: [], queue: [], orders: [], dmzProducts: [], weeks: [], taskTitles: [], taskContents: [], gameSession: null, lastBackupTime: null, calculatorConfig: DEFAULT_CONFIG };
     }
 }
 
@@ -460,6 +499,9 @@ async function refreshAdminDashboard() {
         renderMemberLists(data.members);
         renderOrderManagement(cleanedOrders);
         renderProductManagement(data.dmzProducts || []);
+        renderWeekManagement(data.weeks || []);
+        renderTaskTitleManagement(data.taskTitles || []);
+        renderTaskContentManagement(data.taskContents || []);
         renderBackupInfo(data.lastBackupTime);
         renderCalculatorConfig(data.calculatorConfig);
 
@@ -474,7 +516,7 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.getElementById(`tab-${tabName}`).classList.add('active');
     
-    if (tabName === 'audience' || tabName === 'orders' || tabName === 'products' || tabName === 'boosting') {
+    if (tabName === 'audience' || tabName === 'orders' || tabName === 'products' || tabName === 'missions' || tabName === 'boosting') {
         refreshAdminDashboard();
     }
 }
@@ -1004,7 +1046,7 @@ function buildDmzProductCode(products) {
     return `DMZ-${String(maxNumber + 1).padStart(3, '0')}`;
 }
 
-function compressImageFile(file, maxWidth = 720, maxHeight = 720, quality = 0.65) {
+function compressImageFile(file, maxWidth = 1920, maxHeight = 1920, quality = 0.9) {
     return new Promise((resolve, reject) => {
         if (!file) {
             reject(new Error('未選擇圖片'));
@@ -1018,7 +1060,8 @@ function compressImageFile(file, maxWidth = 720, maxHeight = 720, quality = 0.65
                 const widthScale = maxWidth / image.width;
                 const heightScale = maxHeight / image.height;
                 const baseScale = Math.min(1, widthScale, heightScale);
-                const scale = baseScale * 0.5;
+                // Keep source detail by avoiding extra downscale beyond fit bounds.
+                const scale = baseScale;
                 const canvas = document.createElement('canvas');
                 canvas.width = Math.max(1, Math.round(image.width * scale));
                 canvas.height = Math.max(1, Math.round(image.height * scale));
@@ -1028,7 +1071,8 @@ function compressImageFile(file, maxWidth = 720, maxHeight = 720, quality = 0.65
                     return;
                 }
                 ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-                resolve(canvas.toDataURL('image/jpeg', quality));
+                const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+                resolve(canvas.toDataURL(mimeType, quality));
             };
             image.onerror = () => reject(new Error('圖片讀取失敗'));
             image.src = reader.result;
@@ -2050,4 +2094,916 @@ async function exportToExcel(isAuto = false) {
         if(!isAuto) alert('Excel Exported!');
     } catch(e) { console.error(e); if(!isAuto) alert(trans.alert_backup_fail); }
     finally { if(!isAuto) hideLoading(); }
+}
+
+// ==========================================
+// ▼▼▼ DMZ 任務管理功能 ▼▼▼
+// ==========================================
+
+async function previewMissionImage(event) {
+    const file = event.target.files && event.target.files[0];
+    const preview = document.getElementById('missionImagePreview');
+    if (!preview) return;
+
+    const taskToken = ++missionCreatePreviewTaskToken;
+
+    if (!file) {
+        pendingMissionImageData = '';
+        pendingMissionOriginalData = '';
+        preview.className = 'dmz-product-preview empty-state';
+        preview.innerHTML = '尚未選擇圖片';
+        isMissionUploadProcessing = false;
+        cancelMissionUploadRequested = false;
+        updateMissionUploadActionState();
+        return;
+    }
+
+    isMissionUploadProcessing = true;
+    cancelMissionUploadRequested = false;
+    updateMissionUploadActionState();
+
+    try {
+        const [originalData, thumbData] = await Promise.all([
+            readFileAsDataURL(file),
+            compressImageFile(file)
+        ]);
+
+        if (taskToken !== missionCreatePreviewTaskToken || cancelMissionUploadRequested) {
+            pendingMissionImageData = '';
+            pendingMissionOriginalData = '';
+            preview.className = 'dmz-product-preview empty-state';
+            preview.innerHTML = '已取消圖片處理';
+            return;
+        }
+
+        pendingMissionOriginalData = originalData;
+        pendingMissionImageData = thumbData;
+        preview.className = 'dmz-product-preview';
+        preview.innerHTML = `<img src="${pendingMissionImageData}" alt="DMZ 任務預覽"><span>圖片已準備上架（雙擊可看原圖）</span>`;
+    } catch (error) {
+        console.error('任務圖片預覽失敗:', error);
+        pendingMissionImageData = '';
+        pendingMissionOriginalData = '';
+        preview.className = 'dmz-product-preview empty-state';
+        preview.innerHTML = '圖片處理失敗，請重新選擇';
+        alert('圖片處理失敗，請重新選擇一張圖片。');
+    } finally {
+        isMissionUploadProcessing = false;
+        cancelMissionUploadRequested = false;
+        updateMissionUploadActionState();
+    }
+}
+
+function updateMissionUploadActionState() {
+    const submitBtn = document.getElementById('missionUploadSubmitBtn');
+    const cancelBtn = document.getElementById('missionUploadCancelBtn');
+    if (submitBtn) submitBtn.disabled = isMissionUploadProcessing || isMissionUploadSubmitting;
+    if (cancelBtn) {
+        cancelBtn.style.display = (isMissionUploadProcessing || isMissionUploadSubmitting) ? 'inline-block' : 'none';
+    }
+}
+
+function resetMissionForm() {
+    const imageInput = document.getElementById('missionImage');
+    const weekInput = document.getElementById('missionWeek');
+    const titleInput = document.getElementById('missionTitle');
+    const descInput = document.getElementById('missionDescription');
+    const singlePriceInput = document.getElementById('missionSinglePrice');
+    const addonPriceInput = document.getElementById('missionAddonPrice');
+    const preview = document.getElementById('missionImagePreview');
+
+    pendingMissionImageData = '';
+    pendingMissionOriginalData = '';
+    isMissionUploadProcessing = false;
+    isMissionUploadSubmitting = false;
+    cancelMissionUploadRequested = false;
+    missionCreatePreviewTaskToken += 1;
+    missionSaveTaskToken += 1;
+    editingMissionId = null;
+
+    if (imageInput) imageInput.value = '';
+    if (weekInput) weekInput.value = '';
+    if (titleInput) titleInput.value = '';
+    if (descInput) descInput.value = '';
+    if (singlePriceInput) singlePriceInput.value = '';
+    if (addonPriceInput) addonPriceInput.value = '';
+    if (preview) {
+        preview.className = 'dmz-product-preview empty-state';
+        preview.innerHTML = '尚未選擇圖片';
+    }
+    updateMissionUploadActionState();
+
+    const submitBtn = document.getElementById('missionUploadSubmitBtn');
+    if (submitBtn) submitBtn.textContent = '📋 上架任務';
+}
+
+function cancelMissionUpload() {
+    cancelMissionUploadRequested = true;
+    resetMissionForm();
+}
+
+async function saveMission() {
+    if (isMissionUploadProcessing || isMissionUploadSubmitting) return;
+
+    const week = Number(document.getElementById('missionWeek')?.value || 0);
+    const title = document.getElementById('missionTitle')?.value.trim() || '';
+    const description = document.getElementById('missionDescription')?.value.trim() || '';
+    const singlePrice = Number(document.getElementById('missionSinglePrice')?.value || 0);
+    const addonPrice = Number(document.getElementById('missionAddonPrice')?.value || 0);
+
+    if (!pendingMissionImageData) {
+        alert('請先選擇任務圖片。');
+        return;
+    }
+    if (!title) {
+        alert('請輸入任務標題。');
+        return;
+    }
+    if (week < 1 || week > 52) {
+        alert('週次請輸入 1-52 之間的數字。');
+        return;
+    }
+    if (singlePrice < 0 || addonPrice < 0) {
+        alert('價格不能為負數。');
+        return;
+    }
+    if (singlePrice <= 0 && addonPrice <= 0) {
+        alert('單點價和加購價至少須輸入一個。');
+        return;
+    }
+
+    const taskToken = ++missionSaveTaskToken;
+    cancelMissionUploadRequested = false;
+    isMissionUploadSubmitting = true;
+    updateMissionUploadActionState();
+
+    try {
+        const isEdit = !!editingMissionId;
+        const missionRef = isEdit 
+            ? database.ref('dmzMissions/' + editingMissionId)
+            : database.ref('dmzMissions').push();
+
+        const missionData = {
+            week,
+            title,
+            description,
+            singlePrice,
+            addonPrice,
+            imageData: pendingMissionImageData,
+            originalImageData: pendingMissionOriginalData || pendingMissionImageData,
+            updatedAt: Date.now()
+        };
+
+        if (!isEdit) {
+            missionData.createdAt = Date.now();
+        }
+
+        await missionRef.set(missionData);
+
+        if (taskToken !== missionSaveTaskToken || cancelMissionUploadRequested) {
+            if (!isEdit) await missionRef.remove();
+            alert('已取消上架。');
+            return;
+        }
+
+        alert(isEdit ? '任務已更新！' : '任務已上架！');
+        resetMissionForm();
+        await refreshAdminDashboard();
+    } catch (error) {
+        if (cancelMissionUploadRequested) {
+            alert('已取消上架。');
+            return;
+        }
+        console.error('保存 DMZ 任務失敗:', error);
+        alert('保存任務失敗，請稍後再試。');
+    } finally {
+        isMissionUploadSubmitting = false;
+        cancelMissionUploadRequested = false;
+        updateMissionUploadActionState();
+    }
+}
+
+function editMission(missionId) {
+    const mission = currentDmzMissionsCache.find((m) => m.id === missionId);
+    if (!mission) return;
+
+    editingMissionId = missionId;
+    pendingEditMissionImageData = '';
+    pendingEditMissionOriginalData = '';
+    currentEditMissionOriginalData = mission.originalImageData || mission.imageData || '';
+
+    document.getElementById('missionWeek').value = mission.week || '';
+    document.getElementById('missionTitle').value = mission.title || '';
+    document.getElementById('missionDescription').value = mission.description || '';
+    document.getElementById('missionSinglePrice').value = mission.singlePrice || '';
+    document.getElementById('missionAddonPrice').value = mission.addonPrice || '';
+
+    const imageInput = document.getElementById('missionImage');
+    if (imageInput) imageInput.value = '';
+
+    const preview = document.getElementById('missionImagePreview');
+    if (preview) {
+        preview.className = 'dmz-product-preview';
+        preview.innerHTML = `<img src="${mission.imageData}" alt="DMZ 任務"><span>已上架（雙擊看原圖，更新圖片請重新選擇）</span>`;
+    }
+
+    const submitBtn = document.getElementById('missionUploadSubmitBtn');
+    if (submitBtn) submitBtn.textContent = '📋 更新任務';
+
+    document.getElementById('missionWeek').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function deleteMission(missionId) {
+    if (!confirm('確定要刪除此任務嗎？此操作無法復原。')) return;
+
+    try {
+        showLoading();
+        await database.ref('dmzMissions/' + missionId).remove();
+        alert('任務已刪除！');
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('刪除任務失敗:', error);
+        alert('刪除任務失敗，請稍後再試。');
+    } finally {
+        hideLoading();
+    }
+}
+
+
+// ===== 新的三層任務管理函數 =====
+
+// 【第1層】週次管理
+async function previewWeekImage(event) {
+    const file = event.target.files && event.target.files[0];
+    const preview = document.getElementById('weekImagePreview');
+    if (!file || !preview) return;
+
+    try {
+        const [original, thumb] = await Promise.all([readFileAsDataURL(file), compressImageFile(file)]);
+        pendingWeekOriginalData = original;
+        pendingWeekImageData = thumb;
+        preview.className = 'dmz-product-preview';
+        preview.innerHTML = `<img src="${pendingWeekImageData}" alt="週次圖片"><span>已準備上架</span>`;
+    } catch (error) {
+        console.error('圖片預覽失敗:', error);
+        alert('圖片處理失敗，請重新選擇。');
+    }
+}
+
+async function saveWeekImage() {
+    const weekRaw = String(document.getElementById('weekNumber')?.value || '').trim();
+    if (!pendingWeekImageData) { alert('請先選擇週次圖片。'); return; }
+
+    let weekValue = null;
+    let weekLabel = '';
+    if (weekRaw === 'special') {
+        weekValue = 'special';
+        weekLabel = '特別試煉';
+    } else {
+        const weekNum = Number(weekRaw || 0);
+        if (weekNum < 1 || weekNum > 52) { alert('請選擇 1-52 週，或「特別試煉」。'); return; }
+        weekValue = weekNum;
+        weekLabel = `第 ${weekNum} 週`;
+    }
+
+    try {
+        const newRef = database.ref('dmzMissionWeeks').push();
+        await newRef.set({
+            week: weekValue,
+            weekLabel,
+            imageData: pendingWeekImageData,
+            originalImageData: pendingWeekOriginalData || pendingWeekImageData,
+            createdAt: Date.now()
+        });
+        alert('週次已上架！');
+        pendingWeekImageData = '';
+        pendingWeekOriginalData = '';
+        document.getElementById('weekNumber').value = '';
+        document.getElementById('weekImageFile').value = '';
+        document.getElementById('weekImagePreview').className = 'dmz-product-preview empty-state';
+        document.getElementById('weekImagePreview').innerHTML = '尚未選擇圖片';
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('上架週次失敗:', error);
+        alert('上架失敗，請稍後再試。');
+    }
+}
+
+function renderWeekManagement(weeks) {
+    currentWeeksCache = weeks || [];
+    const listEl = document.getElementById('weekList');
+    const countEl = document.getElementById('weekCount');
+    const selectEl = document.getElementById('taskTitleWeekSelect');
+    const getWeekLabel = (weekObj) => {
+        if (!weekObj) return '未知週次';
+        if (weekObj.week === 'special') return '特別試煉';
+        const n = Number(weekObj.week);
+        return Number.isFinite(n) && n > 0 ? `第 ${n} 週` : (weekObj.weekLabel || '未知週次');
+    };
+    const sortWeeks = (list) => [...list].sort((a, b) => {
+        const av = a?.week === 'special' ? 9999 : Number(a?.week) || 9998;
+        const bv = b?.week === 'special' ? 9999 : Number(b?.week) || 9998;
+        return av - bv;
+    });
+
+    if (listEl && countEl) {
+        countEl.textContent = `${weeks.length} 個`;
+        if (weeks.length === 0) {
+            listEl.innerHTML = '<div class="empty-state">還沒有上架週次</div>';
+        } else {
+            listEl.innerHTML = sortWeeks(weeks)
+                .map((week) => `
+                    <div style="padding: 8px; background: #1a1a1a; border-radius: 4px; margin-bottom: 6px; display: flex; gap: 8px; align-items: center;">
+                        <img src="${week.originalImageData || week.imageData || ''}" alt="週次" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; cursor: zoom-in;" ondblclick="openImagePreview('${week.originalImageData || week.imageData || ''}')" title="雙擊檢視原圖">
+                        <div style="flex: 1;">
+                            <strong style="color: #00d4ff;">${getWeekLabel(week)}</strong>
+                        </div>
+                        <button class="btn btn-small" onclick="replaceStructureImage('week', '${week.id}')" style="padding: 4px 8px;">更換圖片</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteWeek('${week.id}')" style="padding: 4px 8px;">刪除</button>
+                    </div>
+                `).join('');
+        }
+    }
+
+    if (selectEl) {
+        const currentValue = selectEl.value;
+        selectEl.innerHTML = '<option value="">-- 選擇週次 --</option>';
+        sortWeeks(weeks)
+            .forEach((week) => {
+                const opt = document.createElement('option');
+                opt.value = week.id;
+                opt.textContent = getWeekLabel(week);
+                selectEl.appendChild(opt);
+            });
+        selectEl.value = currentValue;
+    }
+}
+
+async function deleteWeek(weekId) {
+    if (!confirm('確定要刪除此週次嗎？')) return;
+    try {
+        showLoading();
+        await database.ref('dmzMissionWeeks/' + weekId).remove();
+        alert('週次已刪除！');
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('刪除失敗:', error);
+        alert('刪除失敗，請稍後再試。');
+    } finally {
+        hideLoading();
+    }
+}
+
+// 【第2層】任務標題管理
+function onTaskTitleWeekSelected() {
+    const select = document.getElementById('taskTitleWeekSelect');
+    selectedWeekForTaskTitle = select.value || null;
+    const imageInput = document.getElementById('taskTitleImageFile');
+    const nameInput = document.getElementById('taskTitleName');
+    if (imageInput) imageInput.disabled = !selectedWeekForTaskTitle;
+    if (nameInput) nameInput.disabled = !selectedWeekForTaskTitle;
+    if (!selectedWeekForTaskTitle) {
+        document.getElementById('taskTitleImagePreview').className = 'dmz-product-preview empty-state';
+        document.getElementById('taskTitleImagePreview').innerHTML = '請先選擇週次';
+        if (nameInput) nameInput.value = '';
+    }
+    refreshTaskTitleList();
+}
+
+async function previewTaskTitleImage(event) {
+    const file = event.target.files && event.target.files[0];
+    const preview = document.getElementById('taskTitleImagePreview');
+    if (!file || !preview) return;
+
+    try {
+        const [original, thumb] = await Promise.all([readFileAsDataURL(file), compressImageFile(file)]);
+        pendingTaskTitleOriginalData = original;
+        pendingTaskTitleImageData = thumb;
+        preview.className = 'dmz-product-preview';
+        preview.innerHTML = `<img src="${pendingTaskTitleImageData}" alt="任務標題"><span>已準備上架</span>`;
+    } catch (error) {
+        console.error('圖片預覽失敗:', error);
+        alert('圖片處理失敗，請重新選擇。');
+    }
+}
+
+async function saveTaskTitleImage() {
+    if (!selectedWeekForTaskTitle) { alert('請先選擇週次。'); return; }
+    const taskTitleName = String(document.getElementById('taskTitleName')?.value || '').trim();
+    if (!taskTitleName) { alert('請輸入任務標題名稱。'); return; }
+    if (!pendingTaskTitleImageData) { alert('請先選擇任務標題圖片。'); return; }
+
+    try {
+        const newRef = database.ref('dmzMissionTaskTitles').push();
+        await newRef.set({
+            weekId: selectedWeekForTaskTitle,
+            titleName: taskTitleName,
+            imageData: pendingTaskTitleImageData,
+            originalImageData: pendingTaskTitleOriginalData || pendingTaskTitleImageData,
+            createdAt: Date.now()
+        });
+        alert('任務標題已上架！');
+        pendingTaskTitleImageData = '';
+        pendingTaskTitleOriginalData = '';
+        document.getElementById('taskTitleImageFile').value = '';
+        document.getElementById('taskTitleName').value = '';
+        document.getElementById('taskTitleImagePreview').className = 'dmz-product-preview empty-state';
+        document.getElementById('taskTitleImagePreview').innerHTML = '尚未選擇圖片';
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('上架任務標題失敗:', error);
+        alert('上架失敗，請稍後再試。');
+    }
+}
+
+function renderTaskTitleManagement(taskTitles) {
+    currentTaskTitlesCache = taskTitles || [];
+    refreshTaskTitleList();
+    refreshTaskContentTaskSelect();
+}
+
+function refreshTaskTitleList() {
+    const listEl = document.getElementById('taskTitleList');
+    const countEl = document.getElementById('taskTitleCount');
+    if (!listEl || !countEl) return;
+
+    const getWeekLabel = (weekObj) => {
+        if (!weekObj) return '未知週次';
+        if (weekObj.week === 'special') return '特別試煉';
+        const n = Number(weekObj.week);
+        return Number.isFinite(n) && n > 0 ? `第 ${n} 週` : '未知週次';
+    };
+
+    const filtered = currentTaskTitlesCache.filter(t => !selectedWeekForTaskTitle || t.weekId === selectedWeekForTaskTitle);
+    countEl.textContent = `${filtered.length} 個`;
+
+    if (filtered.length === 0) {
+        listEl.innerHTML = '<div class="empty-state">無任務標題</div>';
+    } else {
+        listEl.innerHTML = filtered.map((title) => `
+            <div style="padding: 12px; background: #171717; border: 1px solid #333; border-radius: 8px; margin-bottom: 10px; display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: center;">
+                <div>
+                    <img src="${title.originalImageData || title.imageData || ''}" alt="標題" style="width: 120px; height: 80px; object-fit: cover; border-radius: 6px; cursor: zoom-in; border: 1px solid #444; display: block;" ondblclick="openImagePreview('${title.originalImageData || title.imageData || ''}')" title="雙擊檢視原圖">
+                </div>
+                <div style="min-width: 0;">
+                    <div style="color:#fff; font-weight:700; font-size: 1.05em; margin-bottom:6px; word-break: break-word;">${title.titleName || '未命名標題'}</div>
+                    <small style="color: #9aa4b2; display:block; margin-bottom: 10px;">週次: ${getWeekLabel(currentWeeksCache.find(w => w.id === title.weekId))}</small>
+                    <div style="display:flex; flex-wrap: wrap; gap:8px;">
+                        <button class="btn btn-small" onclick="editTaskTitleMeta('${title.id}')" style="padding: 4px 10px;">編輯標題</button>
+                        <button class="btn btn-small" onclick="replaceStructureImage('taskTitle', '${title.id}')" style="padding: 4px 10px;">更換圖片</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteTaskTitle('${title.id}')" style="padding: 4px 10px;">刪除</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
+async function editTaskTitleMeta(titleId) {
+    const target = currentTaskTitlesCache.find((t) => t.id === titleId);
+    if (!target) {
+        alert('找不到此任務標題。');
+        return;
+    }
+
+    const sortWeeks = (list) => [...list].sort((a, b) => {
+        const av = a?.week === 'special' ? 9999 : Number(a?.week) || 9998;
+        const bv = b?.week === 'special' ? 9999 : Number(b?.week) || 9998;
+        return av - bv;
+    });
+
+    const weekOptions = sortWeeks(currentWeeksCache || []);
+    if (weekOptions.length === 0) {
+        alert('目前沒有可選週次，請先上架週次。');
+        return;
+    }
+
+    const currentName = target.titleName || '';
+    const nameInput = prompt('請輸入新的任務標題名稱：', currentName);
+    if (nameInput === null) return;
+
+    const nextName = String(nameInput).trim();
+    if (!nextName) {
+        alert('任務標題名稱不可為空。');
+        return;
+    }
+
+    const currentWeek = weekOptions.find((w) => w.id === target.weekId);
+    const defaultValue = currentWeek?.week === 'special' ? 'special' : String(currentWeek?.week || '');
+    const helpText = weekOptions
+        .map((w) => (w.week === 'special' ? 'special=特別試煉' : String(w.week)))
+        .join(', ');
+
+    const input = prompt(`請輸入新的週次（1-52 或 special）\n可用：${helpText}`, defaultValue);
+    if (input === null) return;
+
+    const raw = String(input).trim().toLowerCase();
+    let nextWeek = null;
+    if (raw === 'special' || raw.includes('特別')) {
+        nextWeek = weekOptions.find((w) => w.week === 'special') || null;
+    } else {
+        const num = Number(raw.replace(/[^0-9]/g, ''));
+        if (Number.isFinite(num) && num >= 1 && num <= 52) {
+            nextWeek = weekOptions.find((w) => Number(w.week) === num) || null;
+        }
+    }
+
+    if (!nextWeek) {
+        alert('找不到對應週次，請確認該週次已上架。');
+        return;
+    }
+
+    try {
+        showLoading();
+        await database.ref('dmzMissionTaskTitles/' + titleId).update({
+            titleName: nextName,
+            weekId: nextWeek.id,
+            updatedAt: Date.now()
+        });
+        alert('任務標題已更新！');
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('更新任務標題失敗:', error);
+        alert('更新失敗，請稍後再試。');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function deleteTaskTitle(titleId) {
+    if (!confirm('確定要刪除此任務標題嗎？')) return;
+    try {
+        showLoading();
+        await database.ref('dmzMissionTaskTitles/' + titleId).remove();
+        alert('任務標題已刪除！');
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('刪除失敗:', error);
+        alert('刪除失敗，請稍後再試。');
+    } finally {
+        hideLoading();
+    }
+}
+
+// 【第3層】任務內容管理
+function onTaskContentTaskSelected() {
+    const select = document.getElementById('taskContentTaskSelect');
+    selectedTaskTitleForContent = select.value || null;
+    const imageInput = document.getElementById('taskContentImageFile');
+    const priceInputs = document.querySelectorAll('#taskContentSinglePrice, #taskContentAddonPrice');
+    const isEnabled = !!selectedTaskTitleForContent;
+    
+    if (imageInput) imageInput.disabled = !isEnabled;
+    priceInputs.forEach(inp => inp.disabled = !isEnabled);
+    
+    if (!selectedTaskTitleForContent) {
+        document.getElementById('taskContentImagePreview').className = 'dmz-product-preview empty-state';
+        document.getElementById('taskContentImagePreview').innerHTML = '請先選擇任務標題';
+    }
+    refreshTaskContentList();
+}
+
+async function previewTaskContentImage(event) {
+    const file = event.target.files && event.target.files[0];
+    const preview = document.getElementById('taskContentImagePreview');
+    if (!file || !preview) return;
+
+    try {
+        const [original, thumb] = await Promise.all([readFileAsDataURL(file), compressImageFile(file)]);
+        pendingTaskContentOriginalData = original;
+        pendingTaskContentImageData = thumb;
+        preview.className = 'dmz-product-preview';
+        preview.innerHTML = `<img src="${pendingTaskContentImageData}" alt="任務內容"><span>已準備上架</span>`;
+    } catch (error) {
+        console.error('圖片預覽失敗:', error);
+        alert('圖片處理失敗，請重新選擇。');
+    }
+}
+
+async function saveTaskContent() {
+    if (!selectedTaskTitleForContent) { alert('請先選擇任務標題。'); return; }
+    if (!pendingTaskContentImageData) { alert('請先選擇任務內容圖片。'); return; }
+    
+    const singlePrice = Number(document.getElementById('taskContentSinglePrice')?.value || 0);
+    const addonPrice = Number(document.getElementById('taskContentAddonPrice')?.value || 0);
+    if (singlePrice <= 0 && addonPrice <= 0) { alert('單點價或加購價至少須輸入一個。'); return; }
+
+    try {
+        const newRef = database.ref('dmzMissionTaskContents').push();
+        await newRef.set({
+            taskTitleId: selectedTaskTitleForContent,
+            imageData: pendingTaskContentImageData,
+            originalImageData: pendingTaskContentOriginalData || pendingTaskContentImageData,
+            singlePrice,
+            addonPrice,
+            createdAt: Date.now()
+        });
+        alert('任務內容已上架！');
+        pendingTaskContentImageData = '';
+        pendingTaskContentOriginalData = '';
+        document.getElementById('taskContentImageFile').value = '';
+        document.getElementById('taskContentSinglePrice').value = '';
+        document.getElementById('taskContentAddonPrice').value = '';
+        document.getElementById('taskContentImagePreview').className = 'dmz-product-preview empty-state';
+        document.getElementById('taskContentImagePreview').innerHTML = '尚未選擇圖片';
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('上架任務內容失敗:', error);
+        alert('上架失敗，請稍後再試。');
+    }
+}
+
+function renderTaskContentManagement(taskContents) {
+    currentTaskContentsCache = taskContents || [];
+    refreshTaskContentTaskSelect();
+    refreshTaskContentList();
+}
+
+function refreshTaskContentTaskSelect() {
+    const select = document.getElementById('taskContentTaskSelect');
+    if (!select) return;
+
+    const getWeekLabel = (weekObj) => {
+        if (!weekObj) return '未知週次';
+        if (weekObj.week === 'special') return '特別試煉';
+        const n = Number(weekObj.week);
+        return Number.isFinite(n) && n > 0 ? `第 ${n} 週` : '未知週次';
+    };
+    
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">-- 選擇任務標題 --</option>';
+    
+    currentTaskTitlesCache.forEach((title) => {
+        const opt = document.createElement('option');
+        opt.value = title.id;
+        const week = currentWeeksCache.find(w => w.id === title.weekId);
+        const weekLabel = getWeekLabel(week);
+        const titleLabel = title.titleName || '未命名標題';
+        opt.textContent = `${weekLabel} - ${titleLabel}`;
+        select.appendChild(opt);
+    });
+    
+    select.value = currentValue;
+}
+
+function refreshTaskContentList() {
+    const listEl = document.getElementById('taskContentList');
+    const countEl = document.getElementById('taskContentCount');
+    if (!listEl || !countEl) return;
+
+    const getTitleName = (taskTitleId) => {
+        const title = currentTaskTitlesCache.find(t => t.id === taskTitleId);
+        return title?.titleName || '未命名標題';
+    };
+
+    const filtered = currentTaskContentsCache.filter(c => !selectedTaskTitleForContent || c.taskTitleId === selectedTaskTitleForContent);
+    countEl.textContent = `${filtered.length} 個`;
+
+    if (filtered.length === 0) {
+        listEl.innerHTML = '<div class="empty-state">無任務內容</div>';
+    } else {
+        listEl.innerHTML = filtered.map((content) => `
+            <div style="padding: 12px; background: #171717; border: 1px solid #333; border-radius: 8px; margin-bottom: 10px; display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: center;">
+                <div>
+                    <img src="${content.originalImageData || content.imageData || ''}" alt="內容" style="width: 120px; height: 80px; object-fit: cover; border-radius: 6px; cursor: zoom-in; border: 1px solid #444; display: block;" ondblclick="openImagePreview('${content.originalImageData || content.imageData || ''}')" title="雙擊檢視原圖">
+                </div>
+                <div style="min-width: 0;">
+                    <div style="margin-bottom: 6px; color: #00d4ff; font-weight: 700; word-break: break-word;">標題：${getTitleName(content.taskTitleId)}</div>
+                    <div style="margin-bottom: 10px; display:flex; gap:12px; flex-wrap: wrap;">
+                        <span style="color: #aaa; font-size: 0.92em;">單點: <strong style="color: #ffd700;">NT$${content.singlePrice}</strong></span>
+                        <span style="color: #aaa; font-size: 0.92em;">加購: <strong style="color: #ffd700;">NT$${content.addonPrice}</strong></span>
+                    </div>
+                    <div style="display:flex; flex-wrap: wrap; gap:8px;">
+                        <button class="btn btn-small" onclick="editTaskContentPrices('${content.id}')" style="padding: 4px 10px;">編輯金額</button>
+                        <button class="btn btn-small" onclick="replaceStructureImage('taskContent', '${content.id}')" style="padding: 4px 10px;">更換圖片</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteTaskContent('${content.id}')" style="padding: 4px 10px;">刪除</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
+async function editTaskContentPrices(contentId) {
+    const target = currentTaskContentsCache.find((c) => c.id === contentId);
+    if (!target) {
+        alert('找不到此任務內容。');
+        return;
+    }
+
+    const singleInput = prompt('請輸入新的單點價（可為 0）：', String(Number(target.singlePrice || 0)));
+    if (singleInput === null) return;
+    const addonInput = prompt('請輸入新的加購價（可為 0）：', String(Number(target.addonPrice || 0)));
+    if (addonInput === null) return;
+
+    const singlePrice = Number(singleInput);
+    const addonPrice = Number(addonInput);
+    if (!Number.isFinite(singlePrice) || !Number.isFinite(addonPrice) || singlePrice < 0 || addonPrice < 0) {
+        alert('金額必須是大於或等於 0 的數字。');
+        return;
+    }
+    if (singlePrice <= 0 && addonPrice <= 0) {
+        alert('單點價或加購價至少須大於 0。');
+        return;
+    }
+
+    try {
+        showLoading();
+        await database.ref('dmzMissionTaskContents/' + contentId).update({
+            singlePrice,
+            addonPrice,
+            updatedAt: Date.now()
+        });
+        alert('任務內容金額已更新！');
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('更新任務內容金額失敗:', error);
+        alert('更新失敗，請稍後再試。');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function replaceStructureImage(type, recordId) {
+    const refMap = {
+        week: 'dmzMissionWeeks',
+        taskTitle: 'dmzMissionTaskTitles',
+        taskContent: 'dmzMissionTaskContents'
+    };
+
+    const refPath = refMap[type];
+    if (!refPath || !recordId) {
+        alert('無法判斷要編輯的圖片。');
+        return;
+    }
+
+    const picker = document.createElement('input');
+    picker.type = 'file';
+    picker.accept = 'image/*';
+
+    picker.onchange = async (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        try {
+            showLoading();
+            const [original, thumb] = await Promise.all([
+                readFileAsDataURL(file),
+                compressImageFile(file)
+            ]);
+
+            await database.ref(`${refPath}/${recordId}`).update({
+                imageData: thumb,
+                originalImageData: original,
+                updatedAt: Date.now()
+            });
+
+            alert('圖片已更新！');
+            await refreshAdminDashboard();
+        } catch (error) {
+            console.error('更新圖片失敗:', error);
+            alert('更新圖片失敗，請稍後再試。');
+        } finally {
+            hideLoading();
+        }
+    };
+
+    picker.click();
+}
+
+function openImagePreview(imageSrc) {
+    if (!imageSrc) {
+        alert('找不到圖片來源。');
+        return;
+    }
+    let modal = document.getElementById('structureImagePreviewModal');
+    let image = document.getElementById('structureImagePreviewImage');
+
+    if (!modal || !image) {
+        modal = document.createElement('div');
+        modal.id = 'structureImagePreviewModal';
+        modal.style.cssText = [
+            'position: fixed',
+            'inset: 0',
+            'background: rgba(0,0,0,0.78)',
+            'display: none',
+            'align-items: center',
+            'justify-content: center',
+            'z-index: 9999',
+            'padding: 24px'
+        ].join(';');
+
+        const panel = document.createElement('div');
+        panel.style.cssText = [
+            'position: relative',
+            'max-width: min(96vw, 1100px)',
+            'max-height: 90vh',
+            'background: #0f1115',
+            'border: 1px solid #334',
+            'border-radius: 10px',
+            'padding: 10px'
+        ].join(';');
+
+        image = document.createElement('img');
+        image.id = 'structureImagePreviewImage';
+        image.alt = '圖片預覽';
+        image.style.cssText = 'display:block; max-width: 100%; max-height: calc(90vh - 20px); object-fit: contain; border-radius: 8px;';
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.textContent = '×';
+        closeBtn.style.cssText = [
+            'position: absolute',
+            'top: 12px',
+            'right: 12px',
+            'background: none',
+            'border: none',
+            'color: #888',
+            'font-size: 32px',
+            'cursor: pointer',
+            'padding: 0',
+            'width: 40px',
+            'height: 40px',
+            'display: flex',
+            'align-items: center',
+            'justify-content: center',
+            'transition: color 0.2s'
+        ].join(';');
+        closeBtn.onmouseover = () => closeBtn.style.color = '#ccc';
+        closeBtn.onmouseout = () => closeBtn.style.color = '#888';
+        closeBtn.onclick = () => {
+            modal.style.display = 'none';
+            image.src = '';
+        };
+
+        panel.appendChild(image);
+        panel.appendChild(closeBtn);
+        modal.appendChild(panel);
+        modal.onclick = (event) => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+                image.src = '';
+            }
+        };
+        document.body.appendChild(modal);
+    }
+
+    image.src = imageSrc;
+    modal.style.display = 'flex';
+}
+
+async function deleteTaskContent(contentId) {
+    if (!confirm('確定要刪除此任務內容嗎？')) return;
+    try {
+        showLoading();
+        await database.ref('dmzMissionTaskContents/' + contentId).remove();
+        alert('任務內容已刪除！');
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('刪除失敗:', error);
+        alert('刪除失敗，請稍後再試。');
+    } finally {
+        hideLoading();
+    }
+}
+
+// 【舊函數保留以兼容性】
+function renderMissionManagement(missions) {
+    currentDmzMissionsCache = missions || [];
+    const listEl = document.getElementById('missionList');
+    const countEl = document.getElementById('missionCount');
+
+    if (!listEl || !countEl) return;
+
+    countEl.textContent = `${missions.length} 個`;
+
+    if (missions.length === 0) {
+        listEl.innerHTML = '<div class="empty-state">還沒有上架任務</div>';
+        return;
+    }
+
+    listEl.innerHTML = missions
+        .sort((a, b) => (Number(a.week) || 0) - (Number(b.week) || 0))
+        .map((mission) => `
+            <div class="admin-item" style="display: grid; grid-template-columns: 80px 1fr; gap: 12px; padding: 12px; background: #1a1a1a; border-radius: 6px; border: 1px solid #333; margin-bottom: 8px;">
+                <div style="text-align: center;">
+                    <img src="${mission.imageData || ''}" alt="任務圖片" style="width: 100%; height: 80px; object-fit: cover; border-radius: 4px; cursor: zoom-in;" ondblclick="openImagePreview('${mission.imageData || ''}')" title="雙擊檢視原圖">
+                </div>
+                <div style="flex: 1;">
+                    <div style="margin-bottom: 8px;">
+                        <strong style="color: #00d4ff; font-size: 1.1em;">第${mission.week}週 - ${mission.title}</strong>
+                        <span style="margin-left: 12px; color: #aaa; font-size: 0.9em;">${mission.description || '無描述'}</span>
+                    </div>
+                    <div style="display: flex; gap: 12px; font-size: 0.9em; color: #aaa;">
+                        <span>單點價: <strong style="color: #ffd700;">NT$${mission.singlePrice}</strong></span>
+                        <span>加購價: <strong style="color: #ffd700;">NT$${mission.addonPrice}</strong></span>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="btn btn-small" onclick="editMission('${mission.id}')" style="padding: 4px 12px;">編輯</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteMission('${mission.id}')" style="padding: 4px 12px;">刪除</button>
+                    </div>
+                </div>
+            </div>
+        `)
+        .join('');
 }

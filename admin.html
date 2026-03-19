@@ -31,6 +31,7 @@
         <button class="nav-btn active" onclick="switchTab('audience')">👥 觀眾管理</button>
         <button class="nav-btn" onclick="switchTab('orders')">🧾 訂單管理</button>
         <button class="nav-btn" onclick="switchTab('products')">🛒 商品管理</button>
+        <button class="nav-btn" onclick="switchTab('missions')">📋 任務管理</button>
         <button class="nav-btn" onclick="switchTab('boosting')">📈 上分管理</button>
         
         <div style="flex: 1;"></div>
@@ -301,6 +302,177 @@
                         </thead>
                         <tbody id="weightsTableBody"></tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 任務管理分頁 -->
+        <div id="tab-missions" class="tab-content">
+            <div class="card" data-aos="fade-up">
+                <h2>📋 任務管理（分層上傳）</h2>
+                <p style="color:#aaa; margin-bottom: 12px;">分三層上傳：① 週次圖片 → ② 任務標題圖片 → ③ 任務內容圖片（含定價）。客戶點擊圖片依層級瀏覽任務。</p>
+
+                <!-- ===== 第1層：週次管理 ===== -->
+                <div style="margin-bottom: 30px; padding: 20px; background: #0f0f0f; border: 2px solid #333; border-radius: 8px;">
+                    <h3 style="color: #00d4ff; margin-bottom: 15px;">① 週次圖片上傳</h3>
+                    <div class="dmz-admin-grid">
+                        <div class="dmz-admin-form-panel">
+                            <div class="input-group">
+                                <label>週次圖片</label>
+                                <input type="file" id="weekImageFile" accept="image/*" onchange="previewWeekImage(event)">
+                                <small style="color:#aaa; display:block; margin-top:6px;">上傳代表該週次的圖片（系統自動壓縮）</small>
+                            </div>
+                            <div class="input-group">
+                                <label>週次選項</label>
+                                <select id="weekNumber">
+                                    <option value="">-- 選擇週次 --</option>
+                                    <option value="special">特別試煉</option>
+                                    <option value="1">第 1 週</option>
+                                    <option value="2">第 2 週</option>
+                                    <option value="3">第 3 週</option>
+                                    <option value="4">第 4 週</option>
+                                    <option value="5">第 5 週</option>
+                                    <option value="6">第 6 週</option>
+                                    <option value="7">第 7 週</option>
+                                    <option value="8">第 8 週</option>
+                                    <option value="9">第 9 週</option>
+                                    <option value="10">第 10 週</option>
+                                    <option value="11">第 11 週</option>
+                                    <option value="12">第 12 週</option>
+                                    <option value="13">第 13 週</option>
+                                    <option value="14">第 14 週</option>
+                                    <option value="15">第 15 週</option>
+                                    <option value="16">第 16 週</option>
+                                    <option value="17">第 17 週</option>
+                                    <option value="18">第 18 週</option>
+                                    <option value="19">第 19 週</option>
+                                    <option value="20">第 20 週</option>
+                                    <option value="21">第 21 週</option>
+                                    <option value="22">第 22 週</option>
+                                    <option value="23">第 23 週</option>
+                                    <option value="24">第 24 週</option>
+                                    <option value="25">第 25 週</option>
+                                    <option value="26">第 26 週</option>
+                                    <option value="27">第 27 週</option>
+                                    <option value="28">第 28 週</option>
+                                    <option value="29">第 29 週</option>
+                                    <option value="30">第 30 週</option>
+                                    <option value="31">第 31 週</option>
+                                    <option value="32">第 32 週</option>
+                                    <option value="33">第 33 週</option>
+                                    <option value="34">第 34 週</option>
+                                    <option value="35">第 35 週</option>
+                                    <option value="36">第 36 週</option>
+                                    <option value="37">第 37 週</option>
+                                    <option value="38">第 38 週</option>
+                                    <option value="39">第 39 週</option>
+                                    <option value="40">第 40 週</option>
+                                    <option value="41">第 41 週</option>
+                                    <option value="42">第 42 週</option>
+                                    <option value="43">第 43 週</option>
+                                    <option value="44">第 44 週</option>
+                                    <option value="45">第 45 週</option>
+                                    <option value="46">第 46 週</option>
+                                    <option value="47">第 47 週</option>
+                                    <option value="48">第 48 週</option>
+                                    <option value="49">第 49 週</option>
+                                    <option value="50">第 50 週</option>
+                                    <option value="51">第 51 週</option>
+                                    <option value="52">第 52 週</option>
+                                </select>
+                            </div>
+                            <div id="weekImagePreview" class="dmz-product-preview empty-state">尚未選擇圖片</div>
+                            <div class="dmz-upload-actions">
+                                <button class="btn btn-success" onclick="saveWeekImage()" style="width: 100%;">✅ 上架週次</button>
+                            </div>
+                        </div>
+                        <div class="dmz-admin-list-panel">
+                            <div class="dmz-admin-list-head">
+                                <h3>已上架週次</h3>
+                                <span id="weekCount">0 個</span>
+                            </div>
+                            <div class="list-container" id="weekList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== 第2層：任務標題管理 ===== -->
+                <div style="margin-bottom: 30px; padding: 20px; background: #0f0f0f; border: 2px solid #333; border-radius: 8px;">
+                    <h3 style="color: #00d4ff; margin-bottom: 15px;">② 任務標題圖片上傳</h3>
+                    <p style="color: #aaa; margin-bottom: 12px;">先選擇要為哪一週上傳任務標題</p>
+                    <div class="dmz-admin-grid">
+                        <div class="dmz-admin-form-panel">
+                            <div class="input-group">
+                                <label>選擇週次</label>
+                                <select id="taskTitleWeekSelect" onchange="onTaskTitleWeekSelected()">
+                                    <option value="">-- 選擇週次 --</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>任務標題名稱</label>
+                                <input type="text" id="taskTitleName" placeholder="例如：撤離大師" disabled>
+                                <small style="color:#aaa; display:block; margin-top:6px;">此名稱會顯示在任務內容選單中</small>
+                            </div>
+                            <div class="input-group">
+                                <label>任務標題圖片</label>
+                                <input type="file" id="taskTitleImageFile" accept="image/*" onchange="previewTaskTitleImage(event)" disabled>
+                                <small style="color:#aaa; display:block; margin-top:6px;">上傳該任務在該週次下的標題圖片</small>
+                            </div>
+                            <div id="taskTitleImagePreview" class="dmz-product-preview empty-state">尚未選擇圖片</div>
+                            <div class="dmz-upload-actions">
+                                <button class="btn btn-success" onclick="saveTaskTitleImage()" style="width: 100%;">✅ 上架任務標題</button>
+                            </div>
+                        </div>
+                        <div class="dmz-admin-list-panel">
+                            <div class="dmz-admin-list-head">
+                                <h3>任務標題列表</h3>
+                                <span id="taskTitleCount">0 個</span>
+                            </div>
+                            <div class="list-container" id="taskTitleList"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== 第3層：任務內容管理 ===== -->
+                <div style="padding: 20px; background: #0f0f0f; border: 2px solid #333; border-radius: 8px;">
+                    <h3 style="color: #00d4ff; margin-bottom: 15px;">③ 任務內容圖片上傳（含定價）</h3>
+                    <p style="color: #aaa; margin-bottom: 12px;">先選擇要為哪一個任務標題上傳內容</p>
+                    <div class="dmz-admin-grid">
+                        <div class="dmz-admin-form-panel">
+                            <div class="input-group">
+                                <label>選擇任務標題</label>
+                                <select id="taskContentTaskSelect" onchange="onTaskContentTaskSelected()">
+                                    <option value="">-- 選擇任務標題 --</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>任務內容圖片</label>
+                                <input type="file" id="taskContentImageFile" accept="image/*" onchange="previewTaskContentImage(event)" disabled>
+                                <small style="color:#aaa; display:block; margin-top:6px;">上傳該任務的內容/說明圖片</small>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                <div class="input-group">
+                                    <label>單點價 (NT$)</label>
+                                    <input type="number" id="taskContentSinglePrice" min="0" step="1" placeholder="350" disabled>
+                                </div>
+                                <div class="input-group">
+                                    <label>加購價 (NT$)</label>
+                                    <input type="number" id="taskContentAddonPrice" min="0" step="1" placeholder="300" disabled>
+                                </div>
+                            </div>
+                            <div id="taskContentImagePreview" class="dmz-product-preview empty-state">尚未選擇圖片</div>
+                            <div class="dmz-upload-actions">
+                                <button class="btn btn-success" onclick="saveTaskContent()" style="width: 100%;">✅ 上架任務內容</button>
+                            </div>
+                        </div>
+                        <div class="dmz-admin-list-panel">
+                            <div class="dmz-admin-list-head">
+                                <h3>任務內容列表</h3>
+                                <span id="taskContentCount">0 個</span>
+                            </div>
+                            <div class="list-container" id="taskContentList"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -32,10 +32,22 @@ let calcConfig = null;
 let currentServiceType = 'boost'; 
 let selectedPurchaseTier = 'legend';
 let selectedPurchaseDuration = 30;
+let currentDmzGunsTab = 'products';
 let currentDmzProductsCache = [];
 let currentDmzCartItems = [];
 let dmzProductsRealtimeBound = false;
 let dmzPreviewTapState = { productId: null, time: 0 };
+let currentDmzMissionsCache = [];
+let currentDmzQuoteSelectedMissions = [];
+let dmzMissionsRealtimeBound = false;
+
+// ===== 新的三層任務結構 =====
+let currentWeeksCache = [];
+let currentTaskTitlesCache = [];
+let currentTaskContentsCache = [];
+let dmzTaskStructureRealtimeBound = false;
+let selectedWeekForTaskTitle = null;
+let selectedTaskTitleForContent = null;
 
 const MEMBER_PURCHASE_OPTIONS = {
     legend: {
@@ -68,6 +80,7 @@ const DMZ_COMBO_PRICES = {
     'b+c+d': { label: 'B+C+D 套餐（撞一把）', price: 900 },
     'a+b+c+d': { label: 'A+B+C+D 全套餐（撞兩把）', price: 1100 }
 };
+const DMZ_ACCESSORY_CART_ITEM_ID = 'dmz-guns-accessory-package';
 
 // 預設計算機設定 (備用)
 const DEFAULT_CALC_CONFIG = {
@@ -384,7 +397,7 @@ function buildMembershipOrderData() {
 }
 
 function getSelectedDmzAccessoryKeys() {
-    return Array.from(document.querySelectorAll('.dmz-accessory-card input:checked'))
+    return Array.from(document.querySelectorAll('#dmzGunsPanelAccessories .dmz-accessory-card input:checked'))
         .map((input) => input.value)
         .sort();
 }
@@ -407,88 +420,186 @@ function getDmzAccessoryPricing(selectedKeys) {
     return { price: total, label, detail };
 }
 
+function updateDmzQuoteSummary() {
+    const bundleCount = Number(document.getElementById('dmzBundleCount')?.value || 0);
+    const maxAddonQuota = bundleCount * 3; // 每單3個加購機會
+    
+    // 計算任務費用
+    let missionTotal = 0;
+    let missionSummaryText = '';
+    
+    if (currentDmzQuoteSelectedMissions.length > 0) {
+        const addonMissions = currentDmzQuoteSelectedMissions.filter(m => m.type === 'addon');
+        const singleMissions = currentDmzQuoteSelectedMissions.filter(m => m.type === 'single');
+        
+        addonMissions.forEach(mission => {
+            missionTotal += mission.addonPrice || 0;
+        });
+        singleMissions.forEach(mission => {
+            missionTotal += mission.singlePrice || 0;
+        });
+        
+        let missionDesc = [];
+        if (addonMissions.length > 0) {
+            missionDesc.push(`加購${addonMissions.length}個`);
+        }
+        if (singleMissions.length > 0) {
+            missionDesc.push(`單點${singleMissions.length}個`);
+        }
+        missionSummaryText = missionDesc.join(' + ') + `（${formatPrice(missionTotal)}）`;
+    } else {
+        missionSummaryText = '無';
+    }
+    
+    const bundleTotal = bundleCount * DMZ_BUNDLE_PRICE;
+    const serviceTotal = bundleTotal + missionTotal;
+    const total = serviceTotal;
+
+    // 更新刷單統計顯示
+    const bundleCountEl = document.getElementById('dmzBundleCountDisplay');
+    const bundlePriceEl = document.getElementById('dmzBundlePriceDisplay');
+    const addonQuotaEl = document.getElementById('dmzAddonQuotaDisplay');
+    
+    // 顯示格式改為：剩餘/總額度（例如選1個於3額度時顯示 2/3）
+    const usedAddonCount = currentDmzQuoteSelectedMissions.filter(m => m.type === 'addon').length;
+    const remainingAddonQuota = Math.max(0, maxAddonQuota - usedAddonCount);
+    
+    if (bundleCountEl) bundleCountEl.textContent = bundleCount;
+    if (bundlePriceEl) bundlePriceEl.textContent = formatPrice(bundleTotal);
+    if (addonQuotaEl) addonQuotaEl.textContent = `${remainingAddonQuota}/${maxAddonQuota}`;
+
+    // 更新下單摘要
+    const bundleEl = document.getElementById('dmzSummaryBundles');
+    const missionEl = document.getElementById('dmzSummaryMissions');
+    const serviceTotalEl = document.getElementById('dmzSummaryServiceTotal');
+    const totalEl = document.getElementById('dmzSummaryTotal');
+
+    if (bundleEl) bundleEl.textContent = bundleCount > 0 ? `${bundleCount} 單（${formatPrice(bundleTotal)}）` : '未選擇';
+    if (missionEl) missionEl.textContent = missionSummaryText;
+    if (serviceTotalEl) serviceTotalEl.textContent = formatPrice(serviceTotal);
+    if (totalEl) totalEl.textContent = formatPrice(total);
+    
+    // 重新渲染任務標題，以反映加購配額變化
+    renderDmzTaskTitleGrid();
+}
+
 function getDmzMissionPrice(bundleCount, hasMission) {
     if (!hasMission) return 0;
     return bundleCount > 0 ? DMZ_ESCAPE_MISSION_ADDON_PRICE : DMZ_ESCAPE_MISSION_STANDALONE_PRICE;
 }
 
-function updateDmzQuoteSummary() {
-    const bundleCount = Number(document.getElementById('dmzBundleCount')?.value || 0);
-    const hasMission = Boolean(document.getElementById('dmzMissionEscape')?.checked);
+function updateDmzGunAccessorySummary() {
     const accessoryKeys = getSelectedDmzAccessoryKeys();
     const accessoryPricing = getDmzAccessoryPricing(accessoryKeys);
+    const accessoryComboKey = accessoryKeys.join('+');
+    const accessoryCartItem = currentDmzCartItems.find((item) => item.id === DMZ_ACCESSORY_CART_ITEM_ID);
+    const selectedCountEl = document.getElementById('dmzGunAccessoryCount');
+    const modeEl = document.getElementById('dmzGunAccessoryMode');
+    const totalEl = document.getElementById('dmzGunAccessoryTotal');
+    const summaryTotalEl = document.getElementById('dmzGunAccessorySummaryTotal');
+    const tagsEl = document.getElementById('dmzGunSelectedAccessories');
+    const addCartBtn = document.getElementById('dmzGunAccessoryAddCartBtn');
 
-    const bundleTotal = bundleCount * DMZ_BUNDLE_PRICE;
-    const missionTotal = getDmzMissionPrice(bundleCount, hasMission);
-    const serviceTotal = bundleTotal + missionTotal;
-    const total = bundleTotal + missionTotal + accessoryPricing.price;
-
-    const bundleEl = document.getElementById('dmzSummaryBundles');
-    const missionEl = document.getElementById('dmzSummaryMission');
-    const accessoryModeEl = document.getElementById('dmzSummaryAccessoryMode');
-    const serviceTotalEl = document.getElementById('dmzSummaryServiceTotal');
-    const accessoryTotalEl = document.getElementById('dmzSummaryAccessoryTotal');
-    const totalEl = document.getElementById('dmzSummaryTotal');
-    const tagsEl = document.getElementById('dmzSelectedAccessories');
-
-    if (bundleEl) bundleEl.textContent = bundleCount > 0 ? `${bundleCount} 單（${formatPrice(bundleTotal)}）` : '未選擇';
-    if (missionEl) missionEl.textContent = hasMission
-        ? `${bundleCount > 0 ? '加購價' : '單點價'}（${formatPrice(missionTotal)}）`
-        : '未加購';
-    if (accessoryModeEl) accessoryModeEl.textContent = accessoryPricing.label;
-    if (serviceTotalEl) serviceTotalEl.textContent = formatPrice(serviceTotal);
-    if (accessoryTotalEl) accessoryTotalEl.textContent = formatPrice(accessoryPricing.price);
-    if (totalEl) totalEl.textContent = formatPrice(total);
+    if (selectedCountEl) selectedCountEl.textContent = `${accessoryPricing.detail.length} 項`;
+    if (modeEl) modeEl.textContent = accessoryPricing.label;
+    if (totalEl) totalEl.textContent = formatPrice(accessoryPricing.price);
+    if (summaryTotalEl) summaryTotalEl.textContent = formatPrice(accessoryPricing.price);
 
     if (tagsEl) {
         tagsEl.innerHTML = accessoryPricing.detail.length
             ? accessoryPricing.detail.map((item) => `<span class="dmz-selection-tag">${item.code}. ${escapeHtml(item.label)}</span>`).join('')
-            : '<span class="dmz-selection-tag is-empty">尚未選擇特殊配件</span>';
+            : '<span class="dmz-selection-tag is-empty">尚未選擇 DMZ槍枝配件</span>';
+    }
+
+    if (addCartBtn) {
+        if (!accessoryPricing.detail.length) {
+            addCartBtn.disabled = true;
+            addCartBtn.textContent = '請先勾選配件';
+            addCartBtn.classList.add('is-disabled');
+        } else if (accessoryCartItem && accessoryCartItem.accessoryComboKey === accessoryComboKey) {
+            addCartBtn.disabled = true;
+            addCartBtn.textContent = '已加入購物車';
+            addCartBtn.classList.add('is-disabled');
+        } else if (accessoryCartItem) {
+            addCartBtn.disabled = false;
+            addCartBtn.textContent = '更新購物車配件';
+            addCartBtn.classList.remove('is-disabled');
+        } else {
+            addCartBtn.disabled = false;
+            addCartBtn.textContent = '加入購物車';
+            addCartBtn.classList.remove('is-disabled');
+        }
     }
 }
 
-function buildDmzQuoteOrderData() {
-    const bundleCount = Number(document.getElementById('dmzBundleCount')?.value || 0);
-    const hasMission = Boolean(document.getElementById('dmzMissionEscape')?.checked);
+function addDmzGunAccessoriesToCart() {
     const accessoryKeys = getSelectedDmzAccessoryKeys();
     const accessoryPricing = getDmzAccessoryPricing(accessoryKeys);
 
-    const bundleTotal = bundleCount * DMZ_BUNDLE_PRICE;
-    const missionTotal = getDmzMissionPrice(bundleCount, hasMission);
-    const total = bundleTotal + missionTotal + accessoryPricing.price;
-
-    if (total <= 0) {
-        alert('請至少選擇一項 DMZ 服務或特殊配件，再進行下單。');
-        return null;
+    if (accessoryPricing.price <= 0) {
+        alert('請先選擇至少一項 DMZ槍枝配件，再加入購物車。');
+        return;
     }
 
-    const items = [];
-    if (bundleCount > 0) items.push({ label: '2000萬刷單', value: `${bundleCount} 單 (${formatPrice(bundleTotal)})` });
-    if (hasMission) items.push({
-        label: '千萬撤離任務',
-        value: `1 場（${bundleCount > 0 ? '加購價' : '單點價'} ${formatPrice(missionTotal)}）`
-    });
-    if (accessoryPricing.price > 0) {
-        items.push({ label: '特殊配件方案', value: `${accessoryPricing.label} (${formatPrice(accessoryPricing.price)})` });
-        accessoryPricing.detail.forEach((item) => {
-            items.push({ label: `配件 ${item.code}`, value: item.label });
-        });
-    }
-
-    return {
-        orderType: 'dmz-quote',
-        title: 'DMZ 報價確認',
-        subtitle: 'DMZ 服務下單明細',
-        items,
-        total: formatPrice(total),
-        note: 'DMZ 服務與配件價格已依所選方案自動整理，請完成訂單後聯繫工作室安排。'
+    const accessoryComboKey = accessoryKeys.join('+');
+    const detailText = accessoryPricing.detail.map((item) => `${item.code}. ${item.label}`).join('、');
+    const accessoryCartItem = {
+        id: DMZ_ACCESSORY_CART_ITEM_ID,
+        code: 'DMZ-ACC',
+        name: 'DMZ槍枝配件',
+        description: `${accessoryPricing.label}${detailText ? `｜${detailText}` : ''}`,
+        price: Number(accessoryPricing.price || 0),
+        imageData: 'image/logo.jpg',
+        accessoryComboKey
     };
+
+    const existingIndex = currentDmzCartItems.findIndex((item) => item.id === DMZ_ACCESSORY_CART_ITEM_ID);
+    if (existingIndex >= 0) {
+        currentDmzCartItems[existingIndex] = accessoryCartItem;
+    } else {
+        currentDmzCartItems.push(accessoryCartItem);
+    }
+
+    updateDmzCartSummary();
+    renderDmzCartPage();
+    updateDmzGunAccessorySummary();
 }
 
-function orderDmzQuoteNow() {
-    const orderData = buildDmzQuoteOrderData();
-    if (!orderData) return;
-    confirmAndOpenOrderPage(orderData);
+function switchDmzGunsTab(tabName, buttonEl = null) {
+    currentDmzGunsTab = tabName === 'accessories' ? 'accessories' : 'products';
+
+    const productsPanel = document.getElementById('dmzGunsPanelProducts');
+    const accessoriesPanel = document.getElementById('dmzGunsPanelAccessories');
+    const productsBtn = document.getElementById('dmzGunsTabProducts');
+    const accessoriesBtn = document.getElementById('dmzGunsTabAccessories');
+
+    if (productsPanel) productsPanel.classList.toggle('active', currentDmzGunsTab === 'products');
+    if (accessoriesPanel) accessoriesPanel.classList.toggle('active', currentDmzGunsTab === 'accessories');
+
+    if (productsBtn) {
+        productsBtn.classList.toggle('active', currentDmzGunsTab === 'products');
+        productsBtn.setAttribute('aria-selected', currentDmzGunsTab === 'products' ? 'true' : 'false');
+    }
+    if (accessoriesBtn) {
+        accessoriesBtn.classList.toggle('active', currentDmzGunsTab === 'accessories');
+        accessoriesBtn.setAttribute('aria-selected', currentDmzGunsTab === 'accessories' ? 'true' : 'false');
+    }
+
+    // 保險同步：避免 class 與 aria 不一致導致小分頁亮暗顛倒
+    if (productsBtn && accessoriesBtn) {
+        const productsSelected = currentDmzGunsTab === 'products';
+        productsBtn.setAttribute('aria-selected', productsSelected ? 'true' : 'false');
+        accessoriesBtn.setAttribute('aria-selected', productsSelected ? 'false' : 'true');
+    }
+
+    if (buttonEl && typeof buttonEl.blur === 'function') buttonEl.blur();
+
+    if (currentDmzGunsTab === 'products') {
+        renderDmzProductGrid(currentDmzProductsCache);
+        updateDmzCartSummary();
+    } else {
+        updateDmzGunAccessorySummary();
+    }
 }
 
 function getDmzProductById(productId) {
@@ -580,6 +691,7 @@ function clearDmzCart() {
     updateDmzCartSummary();
     renderDmzProductGrid(currentDmzProductsCache);
     renderDmzCartPage();
+    updateDmzGunAccessorySummary();
 }
 
 function removeDmzProductFromCart(productId) {
@@ -588,11 +700,12 @@ function removeDmzProductFromCart(productId) {
     updateDmzCartSummary();
     renderDmzProductGrid(currentDmzProductsCache);
     renderDmzCartPage();
+    updateDmzGunAccessorySummary();
 }
 
 function buildDmzCartOrderData() {
     if (!currentDmzCartItems.length) {
-        alert('購物車目前是空的，請先加入商品。');
+        alert('購物車目前是空的，請先加入商品或配件。');
         return null;
     }
 
@@ -611,7 +724,7 @@ function buildDmzCartOrderData() {
     return {
         orderType: 'dmz-guns-cart',
         title: 'DMZ 槍枝購物車確認',
-        subtitle: 'DMZ 商品下單明細',
+        subtitle: 'DMZ 商品與配件下單明細',
         items,
         total: formatPrice(total),
         note: '請將此訂單傳送給工作室，確認貨況與交付流程。'
@@ -629,7 +742,7 @@ function renderDmzCartPage() {
     if (!list) return;
 
     if (!currentDmzCartItems.length) {
-        list.innerHTML = '<div class="empty-state">購物車目前是空的，先去 DMZ 槍枝挑選商品吧。</div>';
+        list.innerHTML = '<div class="empty-state">購物車目前是空的，先去 DMZ 槍枝挑選商品或配件吧。</div>';
         return;
     }
 
@@ -723,21 +836,482 @@ function bindDmzProductsRealtime() {
             .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
         currentDmzCartItems = currentDmzCartItems.filter((cartItem) =>
-            currentDmzProductsCache.some((product) => product.id === cartItem.id)
+            cartItem.id === DMZ_ACCESSORY_CART_ITEM_ID || currentDmzProductsCache.some((product) => product.id === cartItem.id)
         );
 
         renderDmzProductGrid(currentDmzProductsCache);
         renderDmzCartPage();
         updateDmzCartSummary();
+        updateDmzGunAccessorySummary();
     }, (error) => {
         console.error('監聽 DMZ 商品失敗:', error);
         renderDmzProductGrid([]);
         renderDmzCartPage();
         updateDmzCartSummary();
+        updateDmzGunAccessorySummary();
     });
 }
 
+// ===== DMZ 報價任務管理 =====
+
+function bindDmzTaskStructureRealtime() {
+    if (dmzTaskStructureRealtimeBound) return;
+
+    dmzTaskStructureRealtimeBound = true;
+    
+    // 綁定週次
+    database.ref('dmzMissionWeeks').on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        currentWeeksCache = Object.keys(data)
+            .map((key) => ({ id: key, ...data[key] }))
+            .sort((a, b) => {
+                const av = a?.week === 'special' ? 9999 : Number(a?.week) || 9998;
+                const bv = b?.week === 'special' ? 9999 : Number(b?.week) || 9998;
+                return av - bv;
+            });
+        renderDmzWeekGrid();
+        resetToWeekSelection();
+    }, (error) => {
+        console.error('監聽週次失敗:', error);
+        currentWeeksCache = [];
+        renderDmzWeekGrid();
+    });
+
+    // 綁定任務標題
+    database.ref('dmzMissionTaskTitles').on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        currentTaskTitlesCache = Object.keys(data)
+            .map((key) => ({ id: key, ...data[key] }));
+        if (selectedWeekForTaskTitle) renderDmzTaskTitleGrid();
+    }, (error) => {
+        console.error('監聽任務標題失敗:', error);
+        currentTaskTitlesCache = [];
+    });
+
+    // 綁定任務內容
+    database.ref('dmzMissionTaskContents').on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        currentTaskContentsCache = Object.keys(data)
+            .map((key) => ({ id: key, ...data[key] }));
+        if (selectedTaskTitleForContent) renderDmzTaskContentList();
+    }, (error) => {
+        console.error('監聽任務內容失敗:', error);
+        currentTaskContentsCache = [];
+    });
+}
+
+function formatDmzWeekLabel(weekObj) {
+    if (!weekObj) return '未知週次';
+    if (weekObj.week === 'special') return '特別試煉';
+    const n = Number(weekObj.week);
+    return Number.isFinite(n) && n > 0 ? `第${n}週` : (weekObj.weekLabel || '未知週次');
+}
+
+function resetToWeekSelection() {
+    selectedWeekForTaskTitle = null;
+    selectedTaskTitleForContent = null;
+    document.getElementById('dmzTaskTitleLayer').style.display = 'none';
+    document.getElementById('dmzTaskContentLayer').style.display = 'none';
+}
+
+function renderDmzWeekGrid() {
+    const grid = document.getElementById('dmzWeekGrid');
+    if (!grid) return;
+
+    if (currentWeeksCache.length === 0) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1; text-align: center; padding: 30px; color: #aaa;">暫無週次</div>';
+        return;
+    }
+
+    grid.innerHTML = currentWeeksCache.map((week) => {
+        const isSelected = selectedWeekForTaskTitle === week.id;
+        const baseBorder = isSelected ? '#00d4ff' : '#333';
+        const baseShadow = isSelected ? '0 0 12px rgba(0,212,255,0.65)' : 'none';
+
+        return `
+        <div style="cursor: pointer; width: 100%; max-width: 150px; border: 2px solid ${baseBorder}; border-radius: 6px; overflow: hidden; transition: all 0.2s; box-shadow: ${baseShadow};" 
+             onmouseenter="this.style.borderColor='#00d4ff'; this.style.boxShadow='0 0 10px rgba(0,212,255,0.5)'" 
+             onmouseleave="this.style.borderColor='${baseBorder}'; this.style.boxShadow='${baseShadow}'"
+             onclick="selectDmzWeek('${week.id}')">
+            <img src="${week.originalImageData || week.imageData || ''}" alt="${formatDmzWeekLabel(week)}" style="width: 100%; aspect-ratio: 186 / 138; height: auto; object-fit: contain; background: #0d1117; display: block;">
+            <div style="text-align: center; padding: 6px; background: #1a1a1a; color: #00d4ff; font-weight: bold;">${formatDmzWeekLabel(week)}</div>
+        </div>
+    `;
+    }).join('');
+}
+
+function selectDmzWeek(weekId) {
+    selectedWeekForTaskTitle = weekId;
+    selectedTaskTitleForContent = null;
+    document.getElementById('dmzTaskTitleLayer').style.display = 'block';
+    document.getElementById('dmzTaskContentLayer').style.display = 'none';
+    renderDmzWeekGrid();
+    renderDmzTaskTitleGrid();
+}
+
+function renderDmzTaskTitleGrid() {
+    const grid = document.getElementById('dmzTaskTitleGrid');
+    if (!grid) return;
+
+    const tasksInWeek = currentTaskTitlesCache.filter(t => t.weekId === selectedWeekForTaskTitle);
+    
+    if (tasksInWeek.length === 0) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1; text-align: center; padding: 30px; color: #aaa;">此週暫無任務標題</div>';
+        return;
+    }
+
+    grid.innerHTML = tasksInWeek.map((title) => {
+        const isSelected = selectedTaskTitleForContent === title.id;
+        const baseBorder = isSelected ? '#ffcc00' : '#666';
+        const baseShadow = isSelected ? '0 0 12px rgba(255,204,0,0.65)' : 'none';
+        
+        // 檢查此任務標題下是否有加購或單點的品項
+        const hasAddonContent = currentDmzQuoteSelectedMissions.some(m => m.taskTitleId === title.id && m.type === 'addon');
+        const hasSingleContent = currentDmzQuoteSelectedMissions.some(m => m.taskTitleId === title.id && m.type === 'single');
+        
+        // 決定遮罩顏色：加購用粉紅，單點用淺灰
+        let overlayStyle = '';
+        if (hasAddonContent) {
+            overlayStyle = '<div style="position: absolute; inset: 0; background: rgba(240, 141, 255, 0.3); border-radius: 4px; pointer-events: none;"></div>';
+        } else if (hasSingleContent) {
+            overlayStyle = '<div style="position: absolute; inset: 0; background: rgba(180, 180, 180, 0.2); border-radius: 4px; pointer-events: none;"></div>';
+        }
+
+        return `
+        <div style="cursor: pointer; width: 100%; max-width: 756px; margin: 0 auto; border: 2px solid ${baseBorder}; border-radius: 6px; overflow: hidden; transition: all 0.2s; box-shadow: ${baseShadow}; position: relative;" 
+             onmouseenter="this.style.borderColor='#ffcc00'; this.style.boxShadow='0 0 10px rgba(255,204,0,0.5)'" 
+             onmouseleave="this.style.borderColor='${baseBorder}'; this.style.boxShadow='${baseShadow}'"
+             onclick="selectDmzTaskTitle('${title.id}')">
+            <img src="${title.originalImageData || title.imageData || ''}" alt="任務標題" style="width: 100%; aspect-ratio: 756 / 127; height: auto; object-fit: contain; background: #0d1117; display: block;">
+            ${overlayStyle}
+        </div>
+    `;
+    }).join('');
+}
+
+function selectDmzTaskTitle(titleId) {
+    selectedTaskTitleForContent = titleId;
+    document.getElementById('dmzTaskContentLayer').style.display = 'block';
+    renderDmzTaskTitleGrid();
+    renderDmzTaskContentList();
+}
+
+function renderDmzTaskContentList() {
+    const list = document.getElementById('dmzTaskContentList');
+    if (!list) return;
+
+    const contentsForTask = currentTaskContentsCache.filter(c => c.taskTitleId === selectedTaskTitleForContent);
+    
+    if (contentsForTask.length === 0) {
+        list.innerHTML = '<div class="empty-state" style="text-align: center; padding: 30px; color: #aaa;">此任務標題暫無內容</div>';
+        return;
+    }
+
+    list.innerHTML = contentsForTask.map((content, index) => {
+        const isSelected = currentDmzQuoteSelectedMissions.some(m => m.id === content.id);
+        const contentImageSrc = content.originalImageData || content.imageData || '';
+        return `
+            <div style="display: grid; gap: 12px; padding: 14px; background: #1a1a1a; border: 2px solid ${isSelected ? '#00d4ff' : '#333'}; border-radius: 8px; transition: all 0.2s;">
+                <img src="${contentImageSrc}" alt="任務內容" style="width: 100%; max-height: 360px; object-fit: contain; border-radius: 8px; cursor: zoom-in; background: #0d1117;" ondblclick="openDmzGenericImagePreview('任務內容預覽', '${contentImageSrc}', '任務內容')">
+                <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center;">
+                    <span style="color: #aaa; font-size: 0.95em;">單點: <strong style="color: #ffd700;">NT$${content.singlePrice}</strong></span>
+                    <span style="color: #aaa; font-size: 0.95em;">加購: <strong style="color: #ffd700;">NT$${content.addonPrice}</strong></span>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-left: auto;">
+                        <input type="checkbox" id="dmzCheck_${content.id}" ${isSelected ? 'checked' : ''} onchange="toggleDmzTaskContentCheckbox('${content.id}', '${content.taskTitleId}', ${content.singlePrice}, ${content.addonPrice}, '${content.imageData || ''}', this.checked)">
+                        <span style="color: ${isSelected ? '#ffd700' : '#aaa'};">${isSelected ? '已選（點擊變更方式）' : '勾選添加'}</span>
+                    </label>
+                </div>
+                <div>
+                    <div style="display: flex; gap: 8px;">
+                        <label style="flex: 1; display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #0a0a0a; border-radius: 4px; border: 1px solid #444; cursor: pointer;">
+                            <input type="radio" name="dmzTaskType_${content.id}" value="addon" ${isSelected ? (currentDmzQuoteSelectedMissions.find(m => m.id === content.id)?.type === 'addon' ? 'checked' : '') : ''} onchange="toggleDmzTaskContent('${content.id}', '${content.taskTitleId}', ${content.singlePrice}, ${content.addonPrice}, '${content.imageData || ''}', 'addon')">
+                            <span style="font-size: 0.9em;">加購</span>
+                        </label>
+                        <label style="flex: 1; display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #0a0a0a; border-radius: 4px; border: 1px solid #444; cursor: pointer;">
+                            <input type="radio" name="dmzTaskType_${content.id}" value="single" ${isSelected ? (currentDmzQuoteSelectedMissions.find(m => m.id === content.id)?.type === 'single' ? 'checked' : '') : ''} onchange="toggleDmzTaskContent('${content.id}', '${content.taskTitleId}', ${content.singlePrice}, ${content.addonPrice}, '${content.imageData || ''}', 'single')">
+                            <span style="font-size: 0.9em;">單點</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function openDmzGenericImagePreview(titleText, imageSrc, altText) {
+    const modal = document.getElementById('dmzImagePreviewModal');
+    const image = document.getElementById('dmzImagePreviewImg');
+    const title = document.getElementById('dmzImagePreviewTitle');
+    if (!modal || !image || !title || !imageSrc) return;
+
+    title.textContent = titleText || '圖片預覽';
+    image.src = imageSrc;
+    image.alt = altText || '圖片預覽';
+    modal.classList.add('active');
+}
+
+function toggleDmzTaskContentCheckbox(contentId, taskTitleId, singlePrice, addonPrice, imageData, isChecked) {
+    const bundleCount = Number(document.getElementById('dmzBundleCount')?.value || 0);
+    const maxAddonQuota = bundleCount * 3;
+    
+    const existingIndex = currentDmzQuoteSelectedMissions.findIndex(m => m.id === contentId);
+    
+    if (isChecked) {
+        // 勾選：添加（默認為 addon）
+        if (existingIndex < 0) {
+            currentDmzQuoteSelectedMissions.push({
+                id: contentId,
+                taskTitleId,
+                type: 'addon',
+                singlePrice,
+                addonPrice,
+                imageData
+            });
+        }
+    } else {
+        // 取消勾選：移除
+        if (existingIndex >= 0) {
+            currentDmzQuoteSelectedMissions.splice(existingIndex, 1);
+        }
+    }
+
+    // 檢查加購數量限制
+    const addonCount = currentDmzQuoteSelectedMissions.filter(m => m.type === 'addon').length;
+    if (addonCount > maxAddonQuota) {
+        const remainingQuota = maxAddonQuota - (addonCount - 1);
+        alert(`加購任務最多只能選 ${maxAddonQuota} 個。\n(目前已用 ${addonCount - 1} 個，剩餘 ${remainingQuota} 個)`);
+        currentDmzQuoteSelectedMissions = currentDmzQuoteSelectedMissions.filter(m => !(m.id === contentId && m.type === 'addon'));
+    }
+
+    renderDmzTaskContentList();
+    renderDmzQuoteSelectedMissions();
+    updateDmzQuoteSummary();
+}
+
+function toggleDmzTaskContent(contentId, taskTitleId, singlePrice, addonPrice, imageData, type) {
+    const bundleCount = Number(document.getElementById('dmzBundleCount')?.value || 0);
+    const maxAddonQuota = bundleCount * 3;
+    
+    const existingIndex = currentDmzQuoteSelectedMissions.findIndex(m => m.id === contentId);
+    
+    if (existingIndex >= 0) {
+        // 如果已選，則切換方式
+        currentDmzQuoteSelectedMissions[existingIndex].type = type;
+    } else {
+        // 如果未選，則添加
+        currentDmzQuoteSelectedMissions.push({
+            id: contentId,
+            taskTitleId,
+            type,
+            singlePrice,
+            addonPrice,
+            imageData
+        });
+    }
+
+    // 檢查加購數量限制
+    const addonCount = currentDmzQuoteSelectedMissions.filter(m => m.type === 'addon').length;
+    if (addonCount > maxAddonQuota) {
+        const remainingQuota = maxAddonQuota - (addonCount - 1);
+        alert(`加購任務最多只能選 ${maxAddonQuota} 個。\n(目前已用 ${addonCount - 1} 個，剩餘 ${remainingQuota} 個)`);
+        currentDmzQuoteSelectedMissions = currentDmzQuoteSelectedMissions.filter(m => !(m.id === contentId && m.type === 'addon'));
+    }
+
+    renderDmzTaskContentList();
+    renderDmzQuoteSelectedMissions();
+    updateDmzQuoteSummary();
+}
+
+function bindDmzMissionsRealtime() {
+    if (dmzMissionsRealtimeBound) return;
+
+    dmzMissionsRealtimeBound = true;
+    database.ref('dmzMissions').on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        currentDmzMissionsCache = Object.keys(data)
+            .map((key) => ({ id: key, ...data[key] }))
+            .sort((a, b) => (Number(a.week) || 0) - (Number(b.week) || 0));
+
+        refreshDmzMissionSelect();
+    }, (error) => {
+        console.error('監聽 DMZ 任務失敗:', error);
+        currentDmzMissionsCache = [];
+        refreshDmzMissionSelect();
+    });
+}
+
+function refreshDmzMissionSelect() {
+    const select = document.getElementById('dmzMissionSelect');
+    if (!select) return;
+
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">-- 選擇任務 --</option>';
+
+    currentDmzMissionsCache.forEach((mission) => {
+        const option = document.createElement('option');
+        option.value = mission.id;
+        option.textContent = `第${mission.week}週 - ${mission.title}`;
+        select.appendChild(option);
+    });
+
+    select.value = currentValue;
+}
+
+function addDmzMissionToQuote() {
+    const missionId = document.getElementById('dmzMissionSelect')?.value || '';
+    const missionType = document.getElementById('dmzMissionType')?.value || 'addon';
+
+    if (!missionId) {
+        alert('請選擇任務。');
+        return;
+    }
+
+    const mission = currentDmzMissionsCache.find((m) => m.id === missionId);
+    if (!mission) {
+        alert('無法找到該任務，請重新選擇。');
+        return;
+    }
+
+    // 檢查加購數量限制
+    const bundleCount = Number(document.getElementById('dmzBundleCount')?.value || 0);
+    const maxAddonQuota = bundleCount * 3;
+    const addonCount = currentDmzQuoteSelectedMissions.filter((m) => m.type === 'addon').length;
+    if (missionType === 'addon' && addonCount >= maxAddonQuota) {
+        alert(`加購任務最多只能選 ${maxAddonQuota} 個。\n(目前已用 ${addonCount} 個)`);
+        return;
+    }
+
+    // 檢查是否已經選過此任務相同的購買方式
+    const exists = currentDmzQuoteSelectedMissions.some((m) => m.id === missionId && m.type === missionType);
+    if (exists) {
+        alert('此任務已在列表中。');
+        return;
+    }
+
+    currentDmzQuoteSelectedMissions.push({
+        id: missionId,
+        title: mission.title,
+        week: mission.week,
+        type: missionType,
+        singlePrice: mission.singlePrice || 0,
+        addonPrice: mission.addonPrice || 0
+    });
+
+    renderDmzQuoteSelectedMissions();
+    updateDmzQuoteSummary();
+    document.getElementById('dmzMissionSelect').value = '';
+}
+
+function removeDmzMissionFromQuote(index) {
+    currentDmzQuoteSelectedMissions.splice(index, 1);
+    renderDmzQuoteSelectedMissions();
+    updateDmzQuoteSummary();
+}
+
+function renderDmzQuoteSelectedMissions() {
+    const container = document.getElementById('dmzMissionsSelectedList');
+    const wrapper = document.getElementById('dmzMissionsSelected');
+
+    if (!container) return;
+
+    if (currentDmzQuoteSelectedMissions.length === 0) {
+        wrapper.style.display = 'none';
+        return;
+    }
+
+    wrapper.style.display = 'block';
+    container.innerHTML = currentDmzQuoteSelectedMissions.map((mission, index) => {
+        const price = mission.type === 'addon' ? mission.addonPrice : mission.singlePrice;
+        const typeLabel = mission.type === 'addon' ? '加購' : '單點';
+        
+        // 查找任務標題資訊
+        const taskTitle = currentTaskTitlesCache.find(t => t.id === mission.taskTitleId);
+        const weekId = taskTitle?.weekId;
+        const week = weekId ? currentWeeksCache.find(w => w.id === weekId) : null;
+        const weekLabel = formatDmzWeekLabel(week);
+        
+        return `
+            <div style="display: grid; grid-template-columns: 60px 1fr auto; gap: 12px; padding: 8px 12px; background: #1a1a1a; border-radius: 6px; border: 1px solid #333; align-items: center;">
+                <img src="${mission.imageData || ''}" alt="任務" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;">
+                <div>
+                    <span style="color: #aaa; font-size: 0.9em;">${weekLabel}</span>
+                    <span style="margin-left: 8px; color: #00d4ff; font-size: 0.9em;">${typeLabel}</span>
+                </div>
+                <div style="text-align: right;">
+                    <strong style="color: #ffd700; display: block;">NT$${price}</strong>
+                    <button class="btn btn-danger btn-small" onclick="removeDmzMissionFromQuote(${index})" style="margin-top: 4px; padding: 4px 8px; font-size: 0.85em;">移除</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function buildDmzQuoteOrderData() {
+    const bundleCount = Number(document.getElementById('dmzBundleCount')?.value || 0);
+    let items = [];
+
+    // 刷單服務
+    items.push({
+        label: '刷單數量',
+        value: bundleCount > 0 ? `${bundleCount} 單（${formatPrice(bundleCount * DMZ_BUNDLE_PRICE)}）` : '未選擇'
+    });
+
+    // 任務列表
+    if (currentDmzQuoteSelectedMissions.length > 0) {
+        currentDmzQuoteSelectedMissions.forEach((mission) => {
+            const typeLabel = mission.type === 'addon' ? '加購' : '單點';
+            const price = mission.type === 'addon' ? mission.addonPrice : mission.singlePrice;
+            
+            // 查找任務標題資訊
+            const taskTitle = currentTaskTitlesCache.find(t => t.id === mission.taskTitleId);
+            const weekId = taskTitle?.weekId;
+            const week = weekId ? currentWeeksCache.find(w => w.id === weekId) : null;
+            const weekLabel = formatDmzWeekLabel(week);
+            
+            items.push({
+                label: `${typeLabel} - ${weekLabel}`,
+                value: formatPrice(price)
+            });
+        });
+    }
+
+    // 計算總價
+    let totalPrice = bundleCount * DMZ_BUNDLE_PRICE;
+    currentDmzQuoteSelectedMissions.forEach((mission) => {
+        totalPrice += mission.type === 'addon' ? mission.addonPrice : mission.singlePrice;
+    });
+
+    items.push({
+        label: '應付總額',
+        value: formatPrice(totalPrice)
+    });
+
+    return {
+        orderType: 'dmzQuote',
+        title: 'DMZ 報價下單確認',
+        subtitle: 'DMZ 報價下單明細',
+        items: items,
+        total: formatPrice(totalPrice),
+        note: 'DMZ 服務價格已依所選方案自動整理，請完成訂單後聯繫工作室 LINE 安排。'
+    };
+}
+
+function orderDmzQuoteNow() {
+    const bundleCount = Number(document.getElementById('dmzBundleCount')?.value || 0);
+    
+    if (bundleCount === 0 && currentDmzQuoteSelectedMissions.length === 0) {
+        alert('請至少選擇 1 個服務項目（刷單或任務）。');
+        return;
+    }
+
+    const orderData = buildDmzQuoteOrderData();
+    if (!orderData) return;
+
+    confirmAndOpenOrderPage(orderData);
+}
+
 function buildQuoteOrderData() {
+
     const finalPrice = document.getElementById('finalPrice')?.textContent?.trim();
     const resultContent = document.getElementById('resultContent');
     if (!resultContent || resultContent.style.display === 'none' || !finalPrice || finalPrice === '---') {
@@ -1854,11 +2428,14 @@ function showPage(pageId) {
         if(typeof updateWeekDisplay === 'function') updateWeekDisplay();
     } else if (pageId === 'dmz-quote') {
         stopAutoRefresh();
+        bindDmzTaskStructureRealtime();
         updateDmzQuoteSummary();
     } else if (pageId === 'dmz-guns') {
         stopAutoRefresh();
         updateDmzCartSummary();
         renderDmzProductGrid(currentDmzProductsCache);
+        updateDmzGunAccessorySummary();
+        switchDmzGunsTab(currentDmzGunsTab);
     } else if (pageId === 'dmz-cart') {
         stopAutoRefresh();
         updateDmzCartSummary();
@@ -2084,6 +2661,7 @@ async function initialize() {
         initHomeMemberTilt();
         updatePurchasePage();
         updateDmzQuoteSummary();
+        updateDmzGunAccessorySummary();
         updateDmzCartSummary();
         renderDmzCartPage();
         startGlobalCountdown();
