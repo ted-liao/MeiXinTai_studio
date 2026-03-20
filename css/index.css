@@ -2786,6 +2786,7 @@ button[onclick="joinQueue()"] {
         overflow-x: auto; /* 若按鈕太多可以左右滑動 */
         position: static !important; /* 移除 sticky 以免擋住內容 */
         padding: 5px 0;
+        justify-content: center !important; /* 讓導航置中 */
     }
 
     /* 2. 左側主要內容卡片 (排在導航欄下方) */
@@ -3754,6 +3755,8 @@ button[onclick="joinQueue()"] {
     border: 2px solid rgba(120, 176, 255, 0.35);
     color: #00d4ff;
     padding: 10px 12px;
+    width: 100%;
+    min-width: 0;
     border-radius: 8px;
     font-weight: 600;
     cursor: pointer;
@@ -3775,6 +3778,7 @@ button[onclick="joinQueue()"] {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
+    min-width: 0;
 }
 
 .dmz-bundle-stat {
@@ -3784,6 +3788,7 @@ button[onclick="joinQueue()"] {
     padding: 12px;
     text-align: center;
     transition: all 0.2s;
+    min-width: 0;
 }
 
 .dmz-bundle-stat:hover {
@@ -4582,8 +4587,33 @@ button[onclick="joinQueue()"] {
         width: 100%;
     }
 
+    .dmz-bundle-highlight {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .dmz-bundle-selector,
+    .dmz-bundle-info,
+    .dmz-bundle-stat {
+        min-width: 0;
+    }
+
+    .dmz-bundle-info {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .dmz-accessory-grid {
         grid-template-columns: 1fr;
+    }
+
+    /* 週次只先顯示前兩個，其他在區塊內往下滑 */
+    .dmz-step-week .dmz-week-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-height: 170px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        align-content: start;
+        padding-right: 4px;
     }
 
     .dmz-product-grid {
@@ -4623,6 +4653,12 @@ button[onclick="joinQueue()"] {
         height: 170px;
     }
 
+
+@media (max-width: 480px) {
+    .dmz-bundle-info {
+        grid-template-columns: 1fr;
+    }
+}
     .dmz-cart-item-card {
         grid-template-columns: 1fr;
         min-height: unset;
@@ -4710,6 +4746,7 @@ button[onclick="joinQueue()"] {
     .site-support-footer {
         margin: 22px 0 0;
         padding: 22px 16px 26px;
+        text-align: center; /* 讓footer文字置中 */
     }
 
     .support-footer-head h3 {
