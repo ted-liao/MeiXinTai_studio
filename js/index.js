@@ -1204,6 +1204,10 @@ function addDmzMissionToQuote() {
 
 function removeDmzMissionFromQuote(index) {
     currentDmzQuoteSelectedMissions.splice(index, 1);
+    // 同步刷新上方任務內容，讓 checkbox/radio 立刻反映取消狀態
+    if (selectedTaskTitleForContent) {
+        renderDmzTaskContentList();
+    }
     renderDmzQuoteSelectedMissions();
     updateDmzQuoteSummary();
 }
@@ -1226,6 +1230,7 @@ function renderDmzQuoteSelectedMissions() {
         
         // 查找任務標題資訊
         const taskTitle = currentTaskTitlesCache.find(t => t.id === mission.taskTitleId);
+        const taskTitleName = (taskTitle?.titleName || taskTitle?.name || '').trim() || '未命名標題';
         const weekId = taskTitle?.weekId;
         const week = weekId ? currentWeeksCache.find(w => w.id === weekId) : null;
         const weekLabel = formatDmzWeekLabel(week);
@@ -1236,6 +1241,7 @@ function renderDmzQuoteSelectedMissions() {
                 <div>
                     <span style="color: #aaa; font-size: 0.9em;">${weekLabel}</span>
                     <span style="margin-left: 8px; color: #00d4ff; font-size: 0.9em;">${typeLabel}</span>
+                    <div style="margin-top: 4px; color: #e6f3ff; font-size: 0.92em;">${taskTitleName}</div>
                 </div>
                 <div style="text-align: right;">
                     <strong style="color: #ffd700; display: block;">NT$${price}</strong>
@@ -1264,12 +1270,13 @@ function buildDmzQuoteOrderData() {
             
             // 查找任務標題資訊
             const taskTitle = currentTaskTitlesCache.find(t => t.id === mission.taskTitleId);
+            const taskTitleName = (taskTitle?.titleName || taskTitle?.name || '').trim() || '未命名標題';
             const weekId = taskTitle?.weekId;
             const week = weekId ? currentWeeksCache.find(w => w.id === weekId) : null;
             const weekLabel = formatDmzWeekLabel(week);
             
             items.push({
-                label: `${typeLabel} - ${weekLabel}`,
+                label: `${typeLabel} - ${weekLabel} / ${taskTitleName}`,
                 value: formatPrice(price)
             });
         });
