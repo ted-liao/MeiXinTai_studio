@@ -799,7 +799,7 @@ function renderDmzProductGrid(products = []) {
         <article class="dmz-product-card ${selected ? 'selected' : ''}">
             <h3 class="dmz-product-name dmz-product-name-top">${escapeHtml(product.name || product.code || 'DMZ 商品')}</h3>
             <div class="dmz-product-image-wrap" onclick="handleDmzImagePreviewTap(event, '${product.id}')" title="雙擊圖片可放大檢視">
-                <img src="${product.imageData}" alt="${escapeHtml(product.code)}" class="dmz-product-image">
+                <img src="${product.originalImageData || product.imageData || ''}" alt="${escapeHtml(product.code)}" class="dmz-product-image">
                 ${selected ? '<span class="dmz-selected-badge">已加入購物車</span>' : ''}
             </div>
             <div class="dmz-product-body">
