@@ -870,7 +870,6 @@ function bindDmzTaskStructureRealtime() {
                 return av - bv;
             });
         renderDmzWeekGrid();
-        resetToWeekSelection();
     }, (error) => {
         console.error('監聽週次失敗:', error);
         currentWeeksCache = [];
@@ -982,7 +981,7 @@ function renderDmzTaskTitleGrid() {
              onmouseenter="this.style.borderColor='#ffcc00'; this.style.boxShadow='0 0 10px rgba(255,204,0,0.5)'" 
              onmouseleave="this.style.borderColor='${baseBorder}'; this.style.boxShadow='${baseShadow}'"
              onclick="selectDmzTaskTitle('${title.id}')">
-            <img src="${title.originalImageData || title.imageData || ''}" alt="任務標題" style="width: 100%; aspect-ratio: 756 / 127; height: auto; object-fit: contain; background: #0d1117; display: block;">
+            <img src="${title.imageData || title.originalImageData || ''}" alt="任務標題" style="width: 100%; aspect-ratio: 756 / 127; height: auto; object-fit: contain; background: #0d1117; display: block;">
             ${overlayStyle}
         </div>
     `;
@@ -1009,10 +1008,11 @@ function renderDmzTaskContentList() {
 
     list.innerHTML = contentsForTask.map((content, index) => {
         const isSelected = currentDmzQuoteSelectedMissions.some(m => m.id === content.id);
-        const contentImageSrc = content.originalImageData || content.imageData || '';
+        const contentImageSrc = content.imageData || content.originalImageData || '';
+        const previewImageSrc = content.originalImageData || content.imageData || '';
         return `
             <div style="display: grid; gap: 12px; padding: 14px; background: #1a1a1a; border: 2px solid ${isSelected ? '#00d4ff' : '#333'}; border-radius: 8px; transition: all 0.2s;">
-                <img src="${contentImageSrc}" alt="任務內容" style="width: 100%; max-height: 360px; object-fit: contain; border-radius: 8px; cursor: zoom-in; background: #0d1117;" ondblclick="openDmzGenericImagePreview('任務內容預覽', '${contentImageSrc}', '任務內容')">
+                <img src="${contentImageSrc}" alt="任務內容" style="width: 100%; max-height: 360px; object-fit: contain; border-radius: 8px; cursor: zoom-in; background: #0d1117;" ondblclick="openDmzGenericImagePreview('任務內容預覽', '${previewImageSrc}', '任務內容')">
                 <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center;">
                     <span style="color: #aaa; font-size: 0.95em;">單點: <strong style="color: #ffd700;">NT$${content.singlePrice}</strong></span>
                     <span style="color: #aaa; font-size: 0.95em;">加購: <strong style="color: #ffd700;">NT$${content.addonPrice}</strong></span>
@@ -1326,7 +1326,7 @@ function buildQuoteOrderData() {
         return null;
     }
 
-    const serviceLabel = currentServiceType === 'boost' ? '急速代打' : '皇家護航';
+    const serviceLabel = currentServiceType === 'boost' ? '急速上分' : '皇家護航';
     const currentScore = document.getElementById('currentScore')?.value || '-';
     const targetScore = document.getElementById('targetScore')?.value || '-';
     const scoreDiff = document.getElementById('scoreDiff')?.textContent?.trim() || '-';
@@ -2260,7 +2260,7 @@ function renderPricingTables() {
             </thead>
             <tbody>
                 <tr>
-                    <td style="color: #00f3ff; font-weight: bold;">⚡ 急速代打</td>
+                    <td style="color: #00f3ff; font-weight: bold;">⚡ 急速上分</td>
                     <td>$${bp.boost.master}</td>
                     <td>$${bp.boost.grandmaster}</td>
                     <td>$${bp.boost.legend}</td>
