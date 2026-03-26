@@ -372,6 +372,56 @@ a.tab:hover {
     border-color: #667eea;
 }
 
+.reg-privacy-group {
+    margin-top: 6px;
+}
+
+.reg-privacy-card {
+    display: flex !important;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 0 !important;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 243, 255, 0.35);
+    background: linear-gradient(135deg, rgba(0, 243, 255, 0.09), rgba(0, 149, 255, 0.06));
+    color: #d9f7ff !important;
+    line-height: 1.65;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.reg-privacy-card:hover {
+    border-color: rgba(0, 243, 255, 0.55);
+    box-shadow: 0 0 16px rgba(0, 243, 255, 0.18);
+    transform: translateY(-1px);
+}
+
+.reg-privacy-card input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-top: 3px;
+    accent-color: #00f3ff;
+    flex-shrink: 0;
+}
+
+.reg-privacy-text {
+    color: #eaf8ff;
+    font-weight: 700;
+    font-size: 0.98rem;
+}
+
+.reg-privacy-link {
+    color: #7fe4ff;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(127, 228, 255, 0.7);
+}
+
+.reg-privacy-link:hover {
+    color: #fff5b1;
+    border-bottom-color: rgba(255, 245, 177, 0.9);
+}
+
 .input-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
@@ -2253,7 +2303,7 @@ button[onclick="joinQueue()"] {
     margin-top: 5px;
 }
 
-/* 啟動狀態：代打 (藍色/青色) */
+/* 啟動狀態：上分 (藍色/青色) */
 .service-option.active#optBoost {
     border-color: #00f3ff;
     background: rgba(0, 243, 255, 0.1);
@@ -3078,6 +3128,15 @@ button[onclick="joinQueue()"] {
     .input-group input,
     .input-group select {
         font-size: 14px;
+    }
+
+    .reg-privacy-card {
+        gap: 10px;
+        padding: 10px 12px;
+    }
+
+    .reg-privacy-text {
+        font-size: 0.93rem;
     }
 
     /* 子分頁按鈕 */
@@ -4722,9 +4781,42 @@ button[onclick="joinQueue()"] {
     letter-spacing: 0.4px;
 }
 
-.support-info-list {
+.support-link-sections {
     position: relative;
     margin-top: 14px;
+}
+
+.support-link-row {
+    margin: 8px 0;
+    color: #d5e4f3;
+    font-size: 1.08rem;
+    line-height: 1.6;
+}
+
+.support-link-row-important {
+    color: #f3dcd2;
+}
+
+.support-divider {
+    color: #87a3c4;
+    margin: 0 6px;
+}
+
+.support-link {
+    color: #8ed3ff;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(142, 211, 255, 0.45);
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.support-link:hover {
+    color: #fff4b0;
+    border-color: rgba(255, 244, 176, 0.8);
+}
+
+.support-info-list {
+    position: relative;
+    margin-top: 12px;
 }
 
 .support-info-row {
@@ -4751,6 +4843,10 @@ button[onclick="joinQueue()"] {
 
     .support-footer-head h3 {
         font-size: 1.3rem;
+    }
+
+    .support-link-row {
+        font-size: 0.96rem;
     }
 
     .support-info-row {

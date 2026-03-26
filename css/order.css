@@ -212,6 +212,15 @@ body {
 .line-preview strong {
     color: #00f3ff;
 }
+.phone-preview {
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border-left: 4px solid #00f3ff;
+}
+.phone-preview strong {
+    color: #00f3ff;
+}
 .order-note {
     margin-top: 16px;
     padding: 14px 16px;
@@ -242,6 +251,34 @@ body {
     display: block;
     margin-top: 8px;
     color: #91a0b0;
+}
+.policy-agree-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 12px;
+    border: 1px solid rgba(0, 243, 255, 0.26);
+    background: rgba(0, 243, 255, 0.06);
+    border-radius: 10px;
+    line-height: 1.65;
+    color: #d6e6f8;
+}
+.policy-agree-box input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-top: 3px;
+    accent-color: #00f3ff;
+    flex-shrink: 0;
+}
+.policy-agree-box a {
+    color: #8ed3ff;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(142, 211, 255, 0.45);
+}
+.policy-agree-box a:hover {
+    color: #fff4b0;
+    border-color: rgba(255, 244, 176, 0.8);
 }
 .action-row {
     display: flex;
@@ -292,5 +329,9 @@ body {
     }
     .order-total {
         font-size: 1.35em;
+    }
+    .policy-agree-box {
+        font-size: 0.95rem;
+        padding: 10px;
     }
 }

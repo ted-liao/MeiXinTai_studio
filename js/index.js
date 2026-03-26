@@ -1865,7 +1865,6 @@ async function showMemberInfo() {
         const badgeClass = currentUser.isAdmin ? 'badge-admin' : 
                           (currentUser.level === 'legend' ? 'badge-legend' : 
                           (currentUser.level === 'diamond' ? 'badge-diamond' : 'badge-gold'));
-        const platformText = currentUser.platform === 'tiktok' ? 'TikTok' : 'YouTube';
         const timeObj = secondsToTime(currentUser.remainingSeconds);
         const timeClass = getTimeColorClass(currentUser.remainingSeconds);
 
@@ -1887,7 +1886,11 @@ async function showMemberInfo() {
     </div>
     <div class="info-item">
         <span>${trans.member_platform}</span>
-        <span>${platformText}</span>
+        <span>${currentUser.gameName || '-'}</span>
+    </div>
+    <div class="info-item">
+        <span>${trans.member_phone}</span>
+        <span>${currentUser.phoneNumber || '-'}</span>
     </div>
     <div class="info-item">
         <span>${trans.member_level}</span>
@@ -2085,13 +2088,13 @@ function calculate() {
 
     // 限制大師 (4501) 以下不接單
     if (current < 4501) {
-        alert("⚠️ 抱歉，本系統目前僅受理「大師 (4501分)」以上的報價。\n\n4501分以下的代打需求，請直接私訊主播詢問！");
+        alert("⚠️ 抱歉，本系統目前僅受理「大師 (4501分)」以上的報價。\n\n4501分以下的上分需求，請直接私訊主播詢問！");
         return;
     }
 
-    // 限制上限：代打最高 14000 分、護航最高 12000 分
+    // 限制上限：上分最高 14000 分、護航最高 12000 分
     const maxAllowedScore = currentServiceType === 'boost' ? 14000 : 12000;
-    const serviceLabel = currentServiceType === 'boost' ? '代打' : '護航';
+    const serviceLabel = currentServiceType === 'boost' ? '上分' : '護航';
 
     if (current > maxAllowedScore) {
         alert(`⚠️ 目前分數超過${serviceLabel}上限（${maxAllowedScore}分）。\n\n超過 ${maxAllowedScore} 分的${serviceLabel}需求，請直接私訊主播詢問！`);
@@ -2288,12 +2291,12 @@ function renderPricingTables() {
             return `<td>${value}</td>`;
         };
 
-        // 表頭結構：每週 8 欄 (代打4 + 護航4)
+        // 表頭結構：每週 8 欄 (上分4 + 護航4)
         let weightHtml = `
             <thead>
                 <tr>
                     <th rowspan="2" style="vertical-align: middle; width: 8%;">週次</th>
-                    <th colspan="4" style="color: #00f3ff; border-bottom: 2px solid rgba(0, 243, 255, 0.3);">⚡ 代打權重</th>
+                    <th colspan="4" style="color: #00f3ff; border-bottom: 2px solid rgba(0, 243, 255, 0.3);">⚡ 上分權重</th>
                     <th colspan="4" style="color: #bd00ff; border-bottom: 2px solid rgba(189, 0, 255, 0.3);">🛡️ 護航權重</th>
                 </tr>
                 <tr class="sub-header">
@@ -2472,8 +2475,10 @@ function closeRegisterModal() {
     document.getElementById('regUsername').value = '';
     document.getElementById('regPassword').value = '';
     document.getElementById('regConfirmPassword').value = '';
-    document.getElementById('regNickname').value = '';
+    document.getElementById('regGameName').value = '';
+    document.getElementById('regPhoneNumber').value = '';
     document.getElementById('regGameUID').value = '';
+    document.getElementById('regPrivacyAgree').checked = false;
 }
 function openChangePasswordModal() { document.getElementById('changePasswordModal').classList.add('active'); }
 function closeChangePasswordModal() { 
@@ -2560,15 +2565,20 @@ async function register() {
     const username = document.getElementById('regUsername').value.trim();
     const password = document.getElementById('regPassword').value.trim();
     const confirmPassword = document.getElementById('regConfirmPassword').value.trim();
-    const platform = document.getElementById('regPlatform').value;
-    const nickname = document.getElementById('regNickname').value.trim() || username;
+    const gameName = document.getElementById('regGameName').value.trim();
+    const phoneNumber = document.getElementById('regPhoneNumber').value.trim();
     const gameUID = document.getElementById('regGameUID').value.trim();
     const secQ = document.getElementById('regSecurityQuestion').value;
     const secA = document.getElementById('regSecurityAnswer').value.trim();
+    const privacyAgreed = document.getElementById('regPrivacyAgree').checked;
     const trans = translations.zh;
 
-    if (!code || !username || !password || !confirmPassword || !gameUID || !secQ || !secA) {
+    if (!code || !username || !password || !confirmPassword || !gameName || !phoneNumber || !gameUID || !secQ || !secA) {
         alert(trans.alert_fill_all || '請填寫完整資訊');
+        return;
+    }
+    if (!privacyAgreed) {
+        alert('請先勾選同意隱私權政策');
         return;
     }
     if (password.length < 6) {
@@ -2602,11 +2612,12 @@ async function register() {
 
         const passwordHash = await hashPassword(password);
         const newMember = {
-            nickname: nickname,
+            nickname: username,
             username: username,
             passwordHash: passwordHash,
+            gameName: gameName,
+            phoneNumber: phoneNumber,
             gameUID: gameUID,
-            platform: platform,
             activationCode: code,
             level: codeData.level,
             remainingSeconds: codeData.seconds,
@@ -2616,6 +2627,7 @@ async function register() {
             quotaLastReset: new Date().toISOString().slice(0, 7),
             securityQuestion: secQ,
             securityAnswer: secA,
+            privacyPolicyAgreedAt: new Date().toISOString(),
             isAdmin: false
         };
 
@@ -2772,7 +2784,8 @@ const translations = {
         'edit_member_title': '編輯會員',
         'logout': '登出',
         'admin_panel': '⚙️ 管理後台',
-        'member_platform': '平台',
+        'member_platform': '遊戲名稱',
+        'member_phone': '電話號碼',
         'member_level': '會員等級',
         'level_legend': '傳說會員',
         'level_diamond': '鑽石會員',

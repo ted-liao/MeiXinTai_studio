@@ -539,8 +539,8 @@ function calculateWeeksBetween(startDateStr, endDateStr) {
     return weeks > 0 ? weeks : 1;
 }
 
-// [修改] 動態生成表格 (8個欄位：代打4個 + 護航4個)
-// [修改] 動態生成表格 (8個欄位：代打4個 + 護航4個)
+// [修改] 動態生成表格 (8個欄位：上分4個 + 護航4個)
+// [修改] 動態生成表格 (8個欄位：上分4個 + 護航4個)
 function generateWeightRows(startDate, endDate) {
     const tbody = document.getElementById('weightsTableBody');
     // 修改 header 以適應 8 個欄位
@@ -553,7 +553,7 @@ function generateWeightRows(startDate, endDate) {
     thead.innerHTML = `
             <tr>
             <th rowspan="2" style="width:50px; vertical-align: middle;">週次</th>
-            <th colspan="4" style="color: #00f3ff; border-bottom: 2px solid rgba(0, 243, 255, 0.3); text-align: center;">⚡ 代打 (Boost)</th>
+            <th colspan="4" style="color: #00f3ff; border-bottom: 2px solid rgba(0, 243, 255, 0.3); text-align: center;">⚡ 上分 (Boost)</th>
             <th colspan="4" style="color: #bd00ff; border-bottom: 2px solid rgba(189, 0, 255, 0.3); text-align: center;">🛡️ 護航 (Carry)</th>
         </tr>
         <tr>
@@ -596,7 +596,7 @@ function generateWeightRows(startDate, endDate) {
 
     let html = '';
     
-    // 定義 8 個欄位 (代打和護航現在都統一用這 4 個 rank)
+    // 定義 8 個欄位 (上分和護航現在都統一用這 4 個 rank)
     const ranks = ['master', 'grandmaster', 'legend', 'mythical'];
     const services = ['boost', 'carry'];
 
@@ -610,7 +610,7 @@ function generateWeightRows(startDate, endDate) {
                            ? currentWeights[service][i][rank] 
                            : { w: 0, e: (service === 'boost' ? 500 : 300) };
 
-                // 舊資料相容 (如果代打是 normal，對應到 master/gm/legend)
+                // 舊資料相容 (如果上分是 normal，對應到 master/gm/legend)
                 if (service === 'boost' && !currentWeights[service]?.[i]?.[rank]) {
                     if (rank !== 'mythical' && currentWeights[service]?.[i]?.normal) {
                         // 繼承舊的 normal 設定

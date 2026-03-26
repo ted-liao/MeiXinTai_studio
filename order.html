@@ -52,6 +52,10 @@
                     客戶 LINE 名稱：<strong id="lineNamePreview">未填寫</strong>
                 </div>
 
+                <div class="phone-preview">
+                    聯絡電話：<strong id="phonePreview">未填寫</strong>
+                </div>
+
                 <div class="order-note" id="orderNote"></div>
             </div>
         </div>
@@ -61,6 +65,21 @@
             <label for="lineNameInput">LINE 名稱（必填）</label>
             <input id="lineNameInput" type="text" placeholder="請輸入您的 LINE 名稱" required>
             <small>這個欄位會一起顯示在訂單圖片中，方便工作室快速對單。</small>
+
+            <label for="phoneInput">電話號碼（必填）</label>
+            <input id="phoneInput" type="tel" placeholder="請輸入聯絡電話（例如：09xxxxxxxx）" required>
+            <small>僅供安排連線時段與緊急聯繫使用，本工作室承諾絕不外流</small>
+
+            <label for="policyAgreeCheck" class="policy-agree-box">
+                <input id="policyAgreeCheck" type="checkbox">
+                <span>
+                    我已詳細閱讀並完全同意 MxT Studio 的
+                    <a href="info.html#terms" target="_blank" rel="noopener">[會員服務條款]</a>
+                    與
+                    <a href="info.html#refund" target="_blank" rel="noopener">[退換貨及退款政策]</a>。
+                    我了解並同意本訂單屬於「虛擬商品與線上勞務服務」，一經付款授權及服務啟動後，即不適用七天鑑賞期，恕不接受退款。
+                </span>
+            </label>
 
             <div class="action-row">
                 <button class="action-btn" id="downloadBtn" type="button">下載資料(JPG)</button>

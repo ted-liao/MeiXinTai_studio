@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>玫心泰遊戲工作室｜網站資訊</title>
+<link rel="icon" type="image/svg+xml" sizes="any" href="image/favicon-round.svg">
+<link rel="icon" type="image/jpeg" href="image/logo.jpg">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/admin.css" />
+<style>
+/* Info 頁面專用樣式 */
+body.info-page {
+    background: linear-gradient(135deg, #06142b 0%, #0a2344 100%);
+}
+.admin-wrapper.info-wrapper {
+    display: flex !important;
+}
+.info-wrapper .sidebar {
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.info-wrapper .sidebar-title-link h2 {
+    font-size: 1.85em;
+}
+.info-wrapper .main-content {
+    margin-left: 260px;
+    padding: 40px;
+}
+.info-wrapper .tab-content h2 {
+    font-size: 1.6rem;
+    color: #e9f6ff;
+    margin-bottom: 20px;
+}
+.info-wrapper .tab-content p,
+.info-wrapper .tab-content li {
+    line-height: 1.8;
+    color: #d6e6f8;
+    font-size: 1.1rem;
+}
+.info-wrapper .tab-content ul {
+    margin: 12px 0 0;
+    padding-left: 24px;
+}
+.info-wrapper .tab-content li {
+    margin: 8px 0;
+}
+.info-notice {
+    color: #ffd6a8;
+    font-weight: 700;
+}
+@media (max-width: 1024px) {
+    .info-wrapper .main-content {
+        margin-left: 0;
+        padding: 30px;
+    }
+    .info-wrapper .sidebar {
+        width: 220px;
+    }
+}
+@media (max-width: 768px) {
+    .info-wrapper {
+        flex-direction: column !important;
+    }
+    .info-wrapper .sidebar {
+        width: 100% !important;
+        height: auto !important;
+        position: static !important;
+        border-left: none !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-right: none !important;
+        padding: 16px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .info-wrapper .sidebar h2 {
+        grid-column: 1 / -1;
+        text-align: center;
+        margin-bottom: 8px;
+        font-size: 1.55em;
+    }
+    .info-wrapper .nav-btn {
+        width: 100%;
+        min-width: 0;
+        text-align: center;
+        padding: 12px 10px !important;
+        font-size: 0.95rem;
+        margin-bottom: 0;
+    }
+    .info-wrapper .main-content {
+        margin-left: 0;
+        padding: 20px;
+    }
+}
+</style>
+</head>
+<body class="info-page">
+
+<div class="admin-wrapper info-wrapper">
+    <!-- 左側導航欄 -->
+    <div class="sidebar">
+        <a href="index.html" class="sidebar-title-link" title="點擊返回首頁">
+            <h2>ℹ️ 網站資訊</h2>
+        </a>
+        <button class="nav-btn active" onclick="switchInfoTab('about', this)">📖 關於我們</button>
+        <button class="nav-btn" onclick="switchInfoTab('contact', this)">📞 聯絡我們</button>
+        <button class="nav-btn" onclick="switchInfoTab('terms', this)">📋 服務條款</button>
+        <button class="nav-btn" onclick="switchInfoTab('privacy', this)">🔒 隱私權政策</button>
+        <button class="nav-btn" onclick="switchInfoTab('refund', this)">↩️ 退換貨政策</button>
+    </div>
+
+    <!-- 右側主內容區 -->
+    <div class="main-content">
+        <!-- 關於我們 -->
+        <div id="tab-about" class="tab-content active">
+            <h2>📖 關於 MxT Studio：突破極限，重塑你的遊戲視野</h2>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">【源自頂尖，專注卓越】</h3>
+            <p>MxT Studio 是由頂尖玩家所創立的專屬遊戲顧問與實況社群品牌。我們深知，在瞬息萬變的高端對局中，勝負往往取決於毫秒之間的判斷與深度的地圖理解。</p>
+            <p>本工作室的創立初衷，不再只是追求個人的極限操作，而是希望將這套經過無數實戰淬鍊的「頂尖思維」，轉化為有系統的教學與陪伴，幫助每一位遇到瓶頸的玩家突破自我，真正享受主宰戰場的樂趣。</p>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">【我們的核心理念與服務】</h3>
+            <p>我們堅信，真正的強大不只是帳號上的牌位，而是玩家自身實力的蛻變。因此，MxT Studio 嚴格遵守遊戲官方規範，拒絕任何破壞遊戲體驗的違規作弊行為。我們 100% 專注於提供最純粹、最高品質的線上勞務與技術交流：</p>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;"><strong>頂尖連線護航陪伴：</strong> 覺得單排總是遇到雷隊友？我們提供最高規格的連線護航服務，讓您在實戰中親自感受高端局的節奏與團隊配合，在頂尖玩家的掩護下安心輸出。</li>
+                <li style="margin: 8px 0;"><strong>實況專屬 VIP 俱樂部：</strong> 我們不只是冷冰冰的教學平台，更是一個充滿熱情的玩家社群。透過多元的會員訂閱制，以及每月的粉絲同樂特權，讓您在提升實力的同時，也能找到長期並肩作戰的夥伴。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">【立足台港澳，接軌國際】</h3>
+            <p>目前，MxT Studio 的服務與實況社群已涵蓋台灣、香港、澳門，並持續吸引來自北美、東南亞等海外超過 30% 的熱情玩家加入。為了提供全球玩家最流暢的體驗，我們將全面導入最高安全規格的第三方信用卡與定期定額金流系統，確保您的每一筆訂閱與購買都獲得最嚴密的保障。</p>
+
+            <p style="margin-top: 18px;"><strong>準備好邁向更高的境界了嗎？加入 MxT Studio，讓我們成為您主宰戰場的最強後盾！</strong></p>
+        </div>
+
+        <!-- 聯絡我們 -->
+        <div id="tab-contact" class="tab-content">
+            <h2>📞 聯絡我們 (Email/LINE)</h2>
+            <ul>
+                <li><strong>LINE 客服：</strong> @104ktglh （工作時間內回應）</li>
+                <li><strong>客服信箱：</strong> mxtstudio.tw@gmail.com</li>
+                <li><strong>服務時間：</strong> 每日 08:00-23:00</li>
+            </ul>
+            <p>有任何問題或需要協助，歡迎透過以上管道與我們聯繫。我們會在工作時間內儘快回應。</p>
+        </div>
+
+        <!-- 服務條款 -->
+        <div id="tab-terms" class="tab-content">
+            <h2>📋 MxT Studio 會員服務條款</h2>
+            
+            <div style="background: rgba(0, 243, 255, 0.08); border-left: 4px solid #00f3ff; padding: 16px; border-radius: 4px; margin: 16px 0 24px; color: #d6e6f8; line-height: 1.8;">
+                <p style="margin: 0;">歡迎您加入 MxT Studio（以下簡稱「本工作室」）。為保障您的權益，請於註冊成為會員或購買本工作室服務前，詳細閱讀本《會員服務條款》（以下簡稱「本條款」）。當您於結帳頁面勾選同意或實際使用本服務時，即表示您已充分知悉、理解並同意接受本條款之所有內容。</p>
+            </div>
+            
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">一、服務內容與性質聲明</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">本工作室提供之核心服務包含：線上實戰觀念指導、高端玩家實戰陪伴與語音交流，以及實況主專屬會員訂閱服務（含專屬影音內容與社群互動）。</li>
+                <li style="margin: 8px 0;"><strong>勞務與時間計費原則：</strong> 本工作室網站上所列之各項單次或包套服務費用，皆為「專業玩家之技術指導與勞務時間費用」。會員了解並同意，購買本服務即代表購買本工作室提供之專屬時間與勞務付出，而非購買單一之遊戲排位結果。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">二、服務完成與免責聲明</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">電子競技遊戲內之對戰勝負、排位晉升，受遊戲系統匹配機制、團隊配合等多重不可控因素影響。本工作室之服務旨在提升會員之遊戲體驗與技術交流，不對最終之遊戲結算數據、特定排位或勝率提供絕對保證。</li>
+                <li style="margin: 8px 0;">服務一經啟動（包含但不限於：語音連線開始、實戰陪伴局數展開、或依雙方約定之服務形式開始執行），即視為本工作室已開始履行勞務。當約定之時數或局數完成時，該次服務即視為「已充分履行並完成」，會員不得以「遊戲內結算結果不如預期」為由要求退款或拒絕支付剩餘款項。</li>
+                <li style="margin: 8px 0;">會員有妥善保管自身遊戲帳號及密碼之義務。若因會員個人行為（如：曾使用未經官方授權之第三方輔助軟體、惡意破壞遊戲體驗等）導致帳號遭遊戲官方懲處或封禁，本工作室概不負責，且已進行之服務時數不予退還。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">三、付款、訂閱與第三方金流</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">本工作室之所有交易（包含單次購買與定期定額訂閱）均透過合法且受主管機關監管之第三方支付平台進行。</li>
+                <li style="margin: 8px 0;">會員於進行刷卡或付款時，應遵守該第三方支付平台之服務條款。本工作室不會直接存取或保留您的完整信用卡卡號資訊。</li>
+                <li style="margin: 8px 0;"><strong>定期定額訂閱：</strong> 若您購買訂閱制會員方案，系統將依您選擇之週期自動扣款。如欲取消訂閱，請於次期扣款日之 3 天前，透過本工作室提供之客服管道（Email 或 LINE）完成取消設定。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">四、會員行為規範與服務終止</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">會員於接受陪伴與教學服務時，應保持基本網路禮儀。嚴禁任何形式之言語騷擾、性騷擾、恐嚇、歧視或惡意謾罵。</li>
+                <li style="margin: 8px 0;">若會員於服務過程中，經查證有使用任何破壞遊戲平衡之外掛程式或腳本，本工作室有權立即終止該次服務，剩餘費用不予退還。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">五、服務暫停與中斷</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">因第三方遊戲伺服器維護、連線異常、遊戲版本重大更新，或不可抗力因素（如天災、停電）導致本工作室無法順利提供陪伴與教學服務時，本工作室將與會員另行協調補償時數或展延服務期限，但不負額外之損害賠償責任。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">六、條款之修改權利</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">本工作室保留隨時修改本條款之權利。修改後的條款將公佈於本網站上，不另行個別通知。若您於條款修改後仍繼續使用本服務，即視為您同意並接受修改後之條款。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">七、準據法與管轄法院</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">本條款之解釋與適用，以及因本條款衍生之相關爭議，均應依照中華民國法律予以處理，並以臺灣臺北地方法院為第一審管轄法院。</li>
+            </ol>
+        </div>
+
+        <!-- 隱私權政策 -->
+        <div id="tab-privacy" class="tab-content">
+            <h2>🔒 隱私權政策</h2>
+
+            <div style="background: rgba(0, 243, 255, 0.08); border-left: 4px solid #00f3ff; padding: 16px; border-radius: 4px; margin: 16px 0 24px; color: #d6e6f8; line-height: 1.8;">
+                <p style="margin: 0;">歡迎您訪問 MxT Studio（以下簡稱「本工作室」）。我們非常重視您的隱私權，並承諾保護您的個人資料。為了讓您能夠安心使用本工作室網站的各項服務與資訊，特此向您說明本網站的隱私權保護政策，以保障您的權益，請您詳閱下列內容：</p>
+            </div>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">一、隱私權保護政策的適用範圍</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">隱私權保護政策內容，包括本網站如何處理在您使用網站服務時收集到的個人識別資料。</li>
+                <li style="margin: 8px 0;">隱私權保護政策不適用於本網站以外的相關連結網站，也不適用於非本網站所委託或參與管理的人員。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">二、個人資料的蒐集、處理及利用方式</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">當您造訪本網站或使用本網站提供之功能服務（如：註冊會員、購買訂閱方案、預約實戰教學或陪伴服務）時，我們將視該服務功能性質，請您提供必要的個人資料（如：電子郵件信箱、LINE 名稱、遊戲內暱稱等），並在該特定目的範圍內處理及利用您的個人資料。</li>
+                <li style="margin: 8px 0;"><strong>金流與交易資訊：</strong> 本工作室網站之交易均透過合法受管制的第三方支付平台進行。您的完整信用卡號、銀行帳號等敏感金融資訊，將直接由第三方支付平台加密處理與安全儲存，本工作室網站伺服器絕對不會攔截、蒐集或保留您的完整付款明細。</li>
+                <li style="margin: 8px 0;">於一般瀏覽時，伺服器會自行記錄相關行徑，包括您使用連線設備的 IP 位址、使用時間、使用的瀏覽器、瀏覽及點選資料記錄等，做為我們增進網站服務的參考依據，此記錄為內部應用，決不對外公佈。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">三、資料之保護</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">本網站主機均設有各項資訊安全設備及必要的安全防護措施，加以保護網站及您的個人資料。</li>
+                <li style="margin: 8px 0;">只由經過授權的人員才能接觸您的個人資料，相關處理人員皆簽有保密合約，如有違反保密義務者，將受相關法律處分。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">四、與第三人共用個人資料之政策</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">本網站絕不會提供、交換、出租或出售任何您的個人資料給其他個人、企業、團體或公務機關，但有法律依據或合約義務者，不在此限。</li>
+                <li style="margin: 8px 0;">前項但書之情形包括不限於：
+                    <ol style="margin: 8px 0 0; padding-left: 22px;">
+                        <li style="margin: 6px 0;">經由您書面同意。</li>
+                        <li style="margin: 6px 0;">法律明文規定。</li>
+                        <li style="margin: 6px 0;">為免除您生命、身體、自由或財產上之危險。</li>
+                        <li style="margin: 6px 0;">當您在網站的行為違反服務條款，或可能損害或妨礙網站與其他使用者權益，或導致任何人遭受損害時，經網站管理單位研析揭露您的個人資料是為了辨識、聯絡或採取法律行動所必要者。</li>
+                    </ol>
+                </li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">五、Cookie 之使用</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">為了提供您最佳的服務，本網站會在您的電腦中放置並取用我們的 Cookie。</li>
+                <li style="margin: 8px 0;">若您不願接受 Cookie 的寫入，您可在您使用的瀏覽器功能項中設定隱私權等級為高，即可拒絕 Cookie 的寫入，但可能會導致網站某些功能無法正常執行。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">六、用戶之權利</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">您可以隨時透過本工作室的官方客服管道（Email 或 LINE），要求查詢、閱覽、補充、更正或刪除屬於您本人的個人資料。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">七、隱私權保護政策之修正</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">本網站隱私權保護政策將因應需求隨時進行修正，修正後的條款將刊登於網站上。當您繼續使用本網站服務時，即視為您已閱讀、瞭解並同意接受本政策之所有修改與變更。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">八、聯絡我們</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">若您對本隱私權保護政策或個人資料處理有任何疑問，請透過網站頁尾的「聯絡我們」管道與我們聯繫。</li>
+            </ol>
+        </div>
+
+        <!-- 退換貨政策 -->
+        <div id="tab-refund" class="tab-content">
+            <h2>↩️ MxT Studio 退換貨與退款政策</h2>
+            
+            <div style="background: rgba(0, 243, 255, 0.08); border-left: 4px solid #00f3ff; padding: 16px; border-radius: 4px; margin: 16px 0 24px; color: #d6e6f8; line-height: 1.8;">
+                <p style="margin: 0;">為保障雙方權益，請於購買 MxT Studio（以下簡稱「本工作室」）提供之各項數位內容與線上服務前，詳細閱讀本《退換貨與退款政策》。當您完成結帳付款，即代表您已充分理解並同意以下條款：</p>
+            </div>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">一、虛擬商品之法定免責聲明</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">本工作室所提供之服務（包含但不限於：實況專屬會員訂閱、專屬影音內容解鎖、線上實戰觀念指導、語音連線護航與陪伴等），皆屬於《消費者保護法》第十九條第二項規定之<strong>「非以有形媒介提供之數位內容或一經提供即為完成之線上服務」</strong>。</li>
+                <li style="margin: 8px 0;">基於上述法規，本工作室之所有虛擬商品與線上勞務服務，一經消費者付款完成、系統授權開通或服務開始執行後，即不適用七天鑑賞期之規定，恕不接受任何理由之退貨、退費或折讓要求。請您於結帳前務必確實核對所購買之方案內容與金額。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">二、會員訂閱制（定期定額）退款規範</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;"><strong>取消訂閱：</strong> 您可隨時透過本工作室之客服管道（Email 或 LINE）提出取消次期訂閱之要求。請務必於次期扣款日之 3 天前完成取消手續。</li>
+                <li style="margin: 8px 0;"><strong>當期費用不予退還：</strong> 若您於當期訂閱期間內提出取消，您的會員權益將持續保留至該計費週期結束。針對已扣款之當期（當月）訂閱費用，本工作室將不依比例進行退費或折抵。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">三、實戰指導與護航服務退款規範</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;"><strong>服務啟動後不退費：</strong> 單次或包套之語音指導與實戰陪伴服務，一經雙方約定時間並開始執行（如：進入語音頻道、遊戲對局開始），即視為勞務已開始提供，無論最終遊戲結算數據或排位結果為何，皆不予退費。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">四、特殊情況之退費與補償機制</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;"><strong>工作室端因素：</strong> 若因本工作室之指導員/陪伴者個人因素（如：設備故障、無故未到），或因第三方遊戲伺服器無預警崩潰、大規模停電等不可抗力因素，導致約定之服務無法順利進行，本工作室將主動與會員協調免費展延服務時間。若經雙方協議無法配合展延，本工作室將針對「尚未履行之服務時數」進行全額或依比例退款。</li>
+                <li style="margin: 8px 0;">退款程序將依照第三方支付平台之規範進行，退款所需之工作天數與手續費內扣（若有）將依該平台或發卡銀行之規定辦理。</li>
+            </ol>
+
+            <h3 style="color: #a8d5ff; margin-top: 24px; margin-bottom: 12px;">五、帳務爭議與惡意退刷處置</h3>
+            <ol style="margin: 12px 0 0; padding-left: 28px;">
+                <li style="margin: 8px 0;">若會員對帳單扣款有任何疑慮，請務必優先透過官方客服管道與本工作室聯繫。</li>
+                <li style="margin: 8px 0;">若會員未經溝通，惡意向發卡銀行或第三方金流平台提出「信用卡爭議帳款」或拒絕付款，本工作室將立即終止該會員之所有權益與未完成之服務，並保留永久封鎖該會員帳號及採取法律途徑求償之權利。</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<script>
+function getTabFromHash() {
+    const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+    const hashMap = {
+        'about-us': 'about',
+        'contact-us': 'contact',
+        'terms': 'terms',
+        'privacy': 'privacy',
+        'refund': 'refund',
+        'about': 'about',
+        'contact': 'contact',
+        'tab-about': 'about',
+        'tab-contact': 'contact',
+        'tab-terms': 'terms',
+        'tab-privacy': 'privacy',
+        'tab-refund': 'refund'
+    };
+    return hashMap[hash] || 'about';
+}
+
+function switchInfoTab(tabName, clickedBtn = null, updateHash = true) {
+    // 隱藏所有 tab-content
+    const tabs = document.querySelectorAll('.tab-content');
+    tabs.forEach(tab => tab.classList.remove('active'));
+    
+    // 移除所有按鈕的 active 狀態
+    const buttons = document.querySelectorAll('.nav-btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    
+    // 顯示對應 tab 並標記按鈕為 active
+    const targetTab = document.getElementById(`tab-${tabName}`);
+    if (targetTab) {
+        targetTab.classList.add('active');
+    }
+    
+    // 標記對應按鈕為 active
+    if (clickedBtn) {
+        clickedBtn.classList.add('active');
+    } else {
+        const matchingBtn = document.querySelector(`.nav-btn[onclick*="'${tabName}'"]`);
+        if (matchingBtn) matchingBtn.classList.add('active');
+    }
+
+    if (updateHash) {
+        window.history.replaceState(null, '', `#${tabName}`);
+    }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    const initialTab = getTabFromHash();
+    switchInfoTab(initialTab, null, false);
+});
+
+window.addEventListener('hashchange', () => {
+    const targetTab = getTabFromHash();
+    switchInfoTab(targetTab, null, false);
+});
+</script>
+
+</body>
+</html>

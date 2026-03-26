@@ -35,16 +35,30 @@ const orderList = document.getElementById('orderList');
 const orderNote = document.getElementById('orderNote');
 const lineNameInput = document.getElementById('lineNameInput');
 const lineNamePreview = document.getElementById('lineNamePreview');
+const phoneInput = document.getElementById('phoneInput');
+const phonePreview = document.getElementById('phonePreview');
 const downloadBtn = document.getElementById('downloadBtn');
+const policyAgreeCheck = document.getElementById('policyAgreeCheck');
 const backHomeBtn = document.getElementById('backHomeBtn');
 
 let currentOrderId = sessionStorage.getItem('currentOrderTrackingId') || '';
 let currentOrderStatus = 'generated';
 let isLeavingOrderPage = false;
 
+// 遮蔽電話號碼（前 5 碼 + XXXXX）
+function maskPhoneNumber(phone) {
+    if (!phone) return '未填寫';
+    const trimmed = phone.trim();
+    if (trimmed.length < 5) return trimmed;
+    return trimmed.substring(0, 5) + 'XXXXX';
+}
+
 function updateDownloadState() {
     const hasLineName = Boolean(lineNameInput.value.trim());
-    downloadBtn.classList.toggle('is-disabled', !hasLineName);
+    const hasPhone = Boolean(phoneInput.value.trim());
+    const agreedPolicy = policyAgreeCheck ? policyAgreeCheck.checked : false;
+    const canDownload = hasLineName && hasPhone && agreedPolicy;
+    downloadBtn.classList.toggle('is-disabled', !canDownload);
 }
 
 async function waitForCaptureAssets(container) {
@@ -81,7 +95,7 @@ function getOrderValueClass(label, value) {
         if (valueText.includes('黃金')) return 'order-value-tag order-value-member-gold';
     }
 
-    if (valueText.includes('代打')) return 'order-value-service-boost';
+    if (valueText.includes('急速上分') || valueText.includes('上分')) return 'order-value-service-boost';
     if (valueText.includes('護航')) return 'order-value-service-escort';
 
     return '';
@@ -165,6 +179,7 @@ async function markOrderAsPendingAfterDownload(fileName) {
             updatedAt: now,
             expiresAt: null,
             lineName: lineNameInput.value.trim(),
+            phone: phoneInput.value.trim(),
             downloadFileName: fileName
         });
         currentOrderStatus = 'pending';
@@ -246,6 +261,16 @@ lineNameInput.addEventListener('input', () => {
     updateDownloadState();
 });
 
+phoneInput.addEventListener('input', () => {
+    const value = phoneInput.value.trim();
+    phonePreview.textContent = maskPhoneNumber(value);
+    updateDownloadState();
+});
+
+if (policyAgreeCheck) {
+    policyAgreeCheck.addEventListener('change', updateDownloadState);
+}
+
 backHomeBtn.addEventListener('click', async (event) => {
     event.preventDefault();
     await leaveOrderPageWithConfirm();
@@ -260,9 +285,32 @@ window.addEventListener('popstate', async () => {
 });
 
 downloadBtn.addEventListener('click', async () => {
-    if (!lineNameInput.value.trim()) {
-        alert('LINE 名稱要填寫後，才能下載 JPG。');
-        lineNameInput.focus();
+    const missingItems = [];
+    const hasLineName = Boolean(lineNameInput.value.trim());
+    const hasPhone = Boolean(phoneInput.value.trim());
+    const hasPolicyAgreement = Boolean(policyAgreeCheck && policyAgreeCheck.checked);
+
+    if (!hasLineName) {
+        missingItems.push('請輸入 LINE 名稱');
+    }
+
+    if (!hasPhone) {
+        missingItems.push('請輸入電話號碼');
+    }
+
+    if (!hasPolicyAgreement) {
+        missingItems.push('請勾選同意會員服務條款與退換貨及退款政策');
+    }
+
+    if (missingItems.length > 0) {
+        alert(`尚有未完成項目：\n- ${missingItems.join('\n- ')}`);
+        if (!hasLineName) {
+            lineNameInput.focus();
+        } else if (!hasPhone) {
+            phoneInput.focus();
+        } else if (policyAgreeCheck) {
+            policyAgreeCheck.focus();
+        }
         updateDownloadState();
         return;
     }
@@ -271,6 +319,8 @@ downloadBtn.addEventListener('click', async () => {
     const orderTimeText = document.getElementById('orderTime').textContent;
     const totalText = orderTotal.textContent;
     const lineText = lineNameInput.value.trim();
+    const phoneText = phoneInput.value.trim();
+    const maskedPhoneText = maskPhoneNumber(phoneText);
 
     const lines = [
         '═════ 請確認以下訂單資訊 ═════',
@@ -285,6 +335,7 @@ downloadBtn.addEventListener('click', async () => {
     lines.push('');
     lines.push(`應付金額：${totalText}`);
     lines.push(`LINE 名稱：${lineText}`);
+    lines.push(`聯絡電話：${maskedPhoneText}`);
     lines.push('');
     lines.push('確認後將下載訂單 JPG，請將圖片傳送至官方 LINE 完成付款。');
 
