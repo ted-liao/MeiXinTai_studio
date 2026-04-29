@@ -3369,6 +3369,26 @@ button[onclick="joinQueue()"] {
     text-shadow: none;
 }
 
+.side-nav-right.nav-grouped .nav-btn.service-paused,
+.side-nav-right.nav-grouped .nav-btn.service-paused:hover,
+.side-nav-right.nav-grouped .nav-btn.service-paused.active {
+    background: linear-gradient(135deg, #ff4d4f 0%, #d9363e 100%) !important;
+    border-color: #ff7a7a !important;
+    color: #fff !important;
+    box-shadow: -8px 0 24px rgba(255, 77, 79, 0.82) !important;
+    text-shadow: none !important;
+}
+
+.side-nav-right.nav-grouped .nav-btn[data-service-paused="true"],
+.side-nav-right.nav-grouped .nav-btn[data-service-paused="true"]:hover,
+.side-nav-right.nav-grouped .nav-btn[data-service-paused="true"].active {
+    background: linear-gradient(135deg, #ff4d4f 0%, #d9363e 100%) !important;
+    border-color: #ff7a7a !important;
+    color: #fff !important;
+    box-shadow: -8px 0 24px rgba(255, 77, 79, 0.82) !important;
+    text-shadow: none !important;
+}
+
 @media (max-width: 1024px) {
     .side-nav-right.nav-grouped {
         flex-direction: column !important;

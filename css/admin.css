@@ -1176,11 +1176,83 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* 7. 【開關 Switch】方塊化 (針對排隊頁面的 Toggle) */
+.service-toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin: 18px 0 22px;
+    padding: 14px 16px;
+    border: 1px solid rgba(0, 243, 255, 0.18);
+    border-radius: 14px;
+    background: rgba(0, 243, 255, 0.06);
+}
+
+.service-toggle-row.is-paused {
+    border-color: rgba(255, 77, 79, 0.42);
+    background: rgba(255, 77, 79, 0.09);
+    box-shadow: 0 0 18px rgba(255, 77, 79, 0.18);
+}
+
+.service-toggle-copy {
+    min-width: 0;
+}
+
+.service-toggle-copy strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #fff;
+    font-size: 1.02rem;
+}
+
+.service-toggle-copy span {
+    display: block;
+    color: #a9bdd1;
+    font-size: 0.92rem;
+}
+
+.service-switch {
+    position: relative;
+    display: inline-block;
+    width: 62px;
+    height: 34px;
+    flex-shrink: 0;
+}
+
+.service-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
 .slider {
+    position: absolute;
+    inset: 0;
+    background-color: #2d3440;
+    cursor: pointer;
+    transition: .4s;
     border-radius: 2px !important; /* 直角開關背景 */
 }
 .slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
     border-radius: 2px !important; /* 直角開關按鈕 */
+}
+.service-switch input:checked + .slider {
+    background-color: #ff4d4f;
+}
+.service-switch input:checked + .slider:before {
+    transform: translateX(28px);
+}
+.service-switch input:disabled + .slider {
+    opacity: 0.65;
+    cursor: not-allowed;
 }
 /* ========================================================================
    ▼▼▼ 最終外觀修正：按鈕全面「螢光外框化」 (Neon Outline Buttons) ▼▼▼

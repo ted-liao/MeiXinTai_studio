@@ -48,6 +48,13 @@ let currentTaskContentsCache = [];
 let dmzTaskStructureRealtimeBound = false;
 let selectedWeekForTaskTitle = null;
 let selectedTaskTitleForContent = null;
+let serviceStatusCache = {
+    dmzQuotePaused: false,
+    dmzGunsPaused: false
+};
+let serviceStatusRealtimeBound = false;
+
+const SERVICE_PAUSE_MESSAGE = '賽季初暫停服務';
 
 const MEMBER_PURCHASE_OPTIONS = {
     legend: {
@@ -533,6 +540,11 @@ function updateDmzGunAccessorySummary() {
 }
 
 function addDmzGunAccessoriesToCart() {
+    if (isDmzPagePaused('dmz-quote')) {
+        alert(SERVICE_PAUSE_MESSAGE);
+        return;
+    }
+
     const accessoryKeys = getSelectedDmzAccessoryKeys();
     const accessoryPricing = getDmzAccessoryPricing(accessoryKeys);
 
@@ -660,6 +672,11 @@ function updateDmzCartSummary() {
 }
 
 function addDmzProductToCart(productId) {
+    if (isDmzPagePaused('dmz-guns')) {
+        alert(SERVICE_PAUSE_MESSAGE);
+        return;
+    }
+
     const product = getDmzProductById(productId);
     if (!product) return;
 
@@ -782,6 +799,68 @@ function toggleDmzFloatingCartBar(pageId) {
     const floatingCartBar = document.getElementById('dmzFloatingCartBar');
     if (!floatingCartBar) return;
     floatingCartBar.style.display = pageId === 'dmz-guns' ? 'flex' : 'none';
+}
+
+function isDmzPagePaused(pageId) {
+    if (pageId === 'dmz-quote') return !!serviceStatusCache.dmzQuotePaused;
+    if (pageId === 'dmz-guns') return !!serviceStatusCache.dmzGunsPaused;
+    return false;
+}
+
+function applyServicePauseState() {
+    document.querySelectorAll('.nav-btn').forEach((btn) => {
+        const action = btn.getAttribute('onclick') || '';
+        const isQuoteBtn = action.includes("dmz-quote");
+        const isGunsBtn = action.includes("dmz-guns");
+        const paused = (isQuoteBtn && serviceStatusCache.dmzQuotePaused) || (isGunsBtn && serviceStatusCache.dmzGunsPaused);
+        btn.classList.toggle('service-paused', paused);
+        btn.dataset.servicePaused = paused ? 'true' : 'false';
+    });
+}
+
+async function refreshServiceStatusCache() {
+    try {
+        const snapshot = await database.ref('serviceStatus').once('value');
+        const data = snapshot.val() || {};
+        serviceStatusCache = {
+            dmzQuotePaused: !!data.dmzQuotePaused,
+            dmzGunsPaused: !!data.dmzGunsPaused
+        };
+        applyServicePauseState();
+    } catch (error) {
+        console.error('讀取服務暫停狀態失敗:', error);
+    }
+}
+
+async function handleDmzNavClick(pageId, buttonEl) {
+    await refreshServiceStatusCache();
+
+    const isAdminOverride = !!currentUser?.isAdmin;
+    if (isDmzPagePaused(pageId) && !isAdminOverride) {
+        alert(SERVICE_PAUSE_MESSAGE);
+        applyServicePauseState();
+        return false;
+    }
+
+    showPage(pageId, isAdminOverride);
+    return false;
+}
+
+function bindServiceStatusRealtime() {
+    if (serviceStatusRealtimeBound) return;
+    serviceStatusRealtimeBound = true;
+
+    database.ref('serviceStatus').on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        serviceStatusCache = {
+            dmzQuotePaused: !!data.dmzQuotePaused,
+            dmzGunsPaused: !!data.dmzGunsPaused
+        };
+        applyServicePauseState();
+    }, (error) => {
+        console.error('監聽服務狀態失敗:', error);
+        applyServicePauseState();
+    });
 }
 
 function renderDmzProductGrid(products = []) {
@@ -1304,6 +1383,11 @@ function buildDmzQuoteOrderData() {
 }
 
 function orderDmzQuoteNow() {
+    if (isDmzPagePaused('dmz-quote')) {
+        alert(SERVICE_PAUSE_MESSAGE);
+        return;
+    }
+
     const bundleCount = Number(document.getElementById('dmzBundleCount')?.value || 0);
     
     if (bundleCount === 0 && currentDmzQuoteSelectedMissions.length === 0) {
@@ -2396,7 +2480,13 @@ function updateUserSection() {
     userSection.innerHTML = html;
 }
 // --- [核心頁面切換邏輯] ---
-function showPage(pageId) {
+function showPage(pageId, allowPaused = false) {
+    if (isDmzPagePaused(pageId) && !allowPaused) {
+        alert(SERVICE_PAUSE_MESSAGE);
+        applyServicePauseState();
+        return;
+    }
+
     currentPage = pageId;
     toggleDmzFloatingCartBar(pageId);
     
@@ -2455,6 +2545,10 @@ function showPage(pageId) {
         updatePurchasePage();
     } else {
         stopAutoRefresh();
+    }
+
+    if (pageId === 'dmz-quote' || pageId === 'dmz-guns') {
+        refreshServiceStatusCache();
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2674,6 +2768,14 @@ async function initialize() {
             }
         }
 
+        const serviceStatusSnapshot = await database.ref('serviceStatus').once('value');
+        const serviceStatusData = serviceStatusSnapshot.val() || {};
+        serviceStatusCache = {
+            dmzQuotePaused: !!serviceStatusData.dmzQuotePaused,
+            dmzGunsPaused: !!serviceStatusData.dmzGunsPaused
+        };
+        applyServicePauseState();
+
         updateUserSection();
         await loadHomeMemberLists();
         bindDmzProductsRealtime();
@@ -2683,6 +2785,7 @@ async function initialize() {
         updateDmzGunAccessorySummary();
         updateDmzCartSummary();
         renderDmzCartPage();
+        bindServiceStatusRealtime();
         startGlobalCountdown();
         
         function setupEnterListener(inputId, callback) {

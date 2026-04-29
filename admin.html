@@ -161,6 +161,16 @@
             <div class="card" data-aos="fade-up">
                 <h2>🛒 商品管理</h2>
                 <p style="color:#aaa; margin-bottom: 12px;">上架 DMZ 槍枝商品圖片、商品描述與售價，前台會自動同步顯示商品卡片。</p>
+                <div class="service-toggle-row">
+                    <div class="service-toggle-copy">
+                        <strong>DMZ 槍枝配件｜暫停服務</strong>
+                        <span id="dmzGunsPauseStatusText">目前：服務中</span>
+                    </div>
+                    <label class="service-switch" title="切換 DMZ 槍枝配件是否暫停服務">
+                        <input type="checkbox" id="dmzGunsPauseToggle" onchange="toggleServicePause('dmzGunsPaused', this)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
 
                 <div class="dmz-admin-grid">
                     <div class="dmz-admin-form-panel">
@@ -311,6 +321,16 @@
             <div class="card" data-aos="fade-up">
                 <h2>📋 任務管理（分層上傳）</h2>
                 <p style="color:#aaa; margin-bottom: 12px;">分三層上傳：① 週次圖片 → ② 任務標題圖片 → ③ 任務內容圖片（含定價）。客戶點擊圖片依層級瀏覽任務。</p>
+                <div class="service-toggle-row">
+                    <div class="service-toggle-copy">
+                        <strong>DMZ 報價｜暫停服務</strong>
+                        <span id="dmzQuotePauseStatusText">目前：服務中</span>
+                    </div>
+                    <label class="service-switch" title="切換 DMZ 報價是否暫停服務">
+                        <input type="checkbox" id="dmzQuotePauseToggle" onchange="toggleServicePause('dmzQuotePaused', this)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
 
                 <!-- ===== 第1層：週次管理 ===== -->
                 <div style="margin-bottom: 30px; padding: 20px; background: #0f0f0f; border: 2px solid #333; border-radius: 8px;">

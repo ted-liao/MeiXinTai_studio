@@ -964,8 +964,8 @@
     <div class="nav-group nav-group-carry">
         <div class="nav-group-title">Carry 專區</div>
         <button class="nav-btn nav-carry" onclick="showPage('calculator')">🚀 多人報價</button>
-        <button class="nav-btn nav-carry" onclick="showPage('dmz-quote')">💼 DMZ報價</button>
-        <button class="nav-btn nav-carry" onclick="showPage('dmz-guns')">🔫 DMZ槍枝/配件</button>
+        <button class="nav-btn nav-carry" onclick="return handleDmzNavClick('dmz-quote', this)">💼 DMZ報價</button>
+        <button class="nav-btn nav-carry" onclick="return handleDmzNavClick('dmz-guns', this)">🔫 DMZ槍枝/配件</button>
     </div>
 
 </nav>

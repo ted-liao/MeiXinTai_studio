@@ -226,6 +226,10 @@ let editingMissionId = null;
 let pendingEditMissionImageData = '';
 let pendingEditMissionOriginalData = '';
 let currentEditMissionOriginalData = '';
+let currentServiceStatus = {
+    dmzQuotePaused: false,
+    dmzGunsPaused: false
+};
 
 // ===== 新的三層結構相關變量 =====
 let currentWeeksCache = [];
@@ -342,7 +346,7 @@ function copyToClipboard(text, button) {
 
 async function loadData() {
     try {
-        const [membersSnapshot, codesSnapshot, queueSnapshot, sessionSnapshot, backupSnapshot, configSnapshot, ordersSnapshot, dmzProductsSnapshot, weeksSnapshot, taskTitlesSnapshot, taskContentsSnapshot] = await Promise.all([
+        const [membersSnapshot, codesSnapshot, queueSnapshot, sessionSnapshot, backupSnapshot, configSnapshot, ordersSnapshot, dmzProductsSnapshot, weeksSnapshot, taskTitlesSnapshot, taskContentsSnapshot, serviceStatusSnapshot] = await Promise.all([
             database.ref('members').once('value'),
             database.ref('activationCodes').once('value'),
             database.ref('queue').once('value'),
@@ -353,7 +357,8 @@ async function loadData() {
             database.ref('dmzProducts').once('value'),
             database.ref('dmzMissionWeeks').once('value'),
             database.ref('dmzMissionTaskTitles').once('value'),
-            database.ref('dmzMissionTaskContents').once('value')
+            database.ref('dmzMissionTaskContents').once('value'),
+            database.ref('serviceStatus').once('value')
         ]);
 
         const membersData = membersSnapshot.val() || {};
@@ -374,6 +379,11 @@ async function loadData() {
         const taskTitles = Object.keys(taskTitlesData).map(key => ({ id: key, ...taskTitlesData[key] }));
         const taskContentsData = taskContentsSnapshot.val() || {};
         const taskContents = Object.keys(taskContentsData).map(key => ({ id: key, ...taskContentsData[key] }));
+        const serviceStatusData = serviceStatusSnapshot.val() || {};
+        currentServiceStatus = {
+            dmzQuotePaused: !!serviceStatusData.dmzQuotePaused,
+            dmzGunsPaused: !!serviceStatusData.dmzGunsPaused
+        };
         
         // 排隊排序
         queue.sort((a, b) => {
@@ -402,11 +412,12 @@ async function loadData() {
             taskContents,
             gameSession: sessionSnapshot.val(),
             lastBackupTime: backupSnapshot.val(),
-            calculatorConfig: configSnapshot.val() || DEFAULT_CONFIG
+            calculatorConfig: configSnapshot.val() || DEFAULT_CONFIG,
+            serviceStatus: currentServiceStatus
         };
     } catch (error) {
         console.error('載入資料失敗:', error);
-        return { members: [], activationCodes: [], queue: [], orders: [], dmzProducts: [], weeks: [], taskTitles: [], taskContents: [], gameSession: null, lastBackupTime: null, calculatorConfig: DEFAULT_CONFIG };
+        return { members: [], activationCodes: [], queue: [], orders: [], dmzProducts: [], weeks: [], taskTitles: [], taskContents: [], gameSession: null, lastBackupTime: null, calculatorConfig: DEFAULT_CONFIG, serviceStatus: currentServiceStatus };
     }
 }
 
@@ -504,8 +515,51 @@ async function refreshAdminDashboard() {
         renderTaskContentManagement(data.taskContents || []);
         renderBackupInfo(data.lastBackupTime);
         renderCalculatorConfig(data.calculatorConfig);
+        renderServicePauseControls(data.serviceStatus || currentServiceStatus);
 
     } catch (error) { console.error("儀表板刷新失敗:", error); }
+}
+
+function renderServicePauseControls(serviceStatus) {
+    currentServiceStatus = {
+        dmzQuotePaused: !!serviceStatus?.dmzQuotePaused,
+        dmzGunsPaused: !!serviceStatus?.dmzGunsPaused
+    };
+
+    const quoteToggle = document.getElementById('dmzQuotePauseToggle');
+    const gunsToggle = document.getElementById('dmzGunsPauseToggle');
+    const quoteStatusText = document.getElementById('dmzQuotePauseStatusText');
+    const gunsStatusText = document.getElementById('dmzGunsPauseStatusText');
+    const quoteRow = quoteToggle ? quoteToggle.closest('.service-toggle-row') : null;
+    const gunsRow = gunsToggle ? gunsToggle.closest('.service-toggle-row') : null;
+
+    if (quoteToggle) quoteToggle.checked = currentServiceStatus.dmzQuotePaused;
+    if (gunsToggle) gunsToggle.checked = currentServiceStatus.dmzGunsPaused;
+    if (quoteStatusText) quoteStatusText.textContent = currentServiceStatus.dmzQuotePaused ? '目前：已暫停服務' : '目前：服務中';
+    if (gunsStatusText) gunsStatusText.textContent = currentServiceStatus.dmzGunsPaused ? '目前：已暫停服務' : '目前：服務中';
+    if (quoteRow) quoteRow.classList.toggle('is-paused', currentServiceStatus.dmzQuotePaused);
+    if (gunsRow) gunsRow.classList.toggle('is-paused', currentServiceStatus.dmzGunsPaused);
+}
+
+async function toggleServicePause(statusKey, checkboxEl) {
+    const paused = !!checkboxEl?.checked;
+    if (!statusKey || !checkboxEl) return;
+
+    checkboxEl.disabled = true;
+    showLoading();
+
+    try {
+        await database.ref(`serviceStatus/${statusKey}`).set(paused);
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('更新服務暫停狀態失敗:', error);
+        checkboxEl.checked = !paused;
+        alert('更新服務狀態失敗，請稍後再試。');
+        await refreshAdminDashboard();
+    } finally {
+        checkboxEl.disabled = false;
+        hideLoading();
+    }
 }
 
 function switchTab(tabName) {
