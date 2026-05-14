@@ -30,7 +30,8 @@
 
         <button class="nav-btn active" onclick="switchTab('audience')">👥 觀眾管理</button>
         <button class="nav-btn" onclick="switchTab('orders')">🧾 訂單管理</button>
-        <button class="nav-btn" onclick="switchTab('products')">🛒 商品管理</button>
+        <button class="nav-btn" onclick="switchTab('products')">🛒 DMZ槍枝管理</button>
+        <button class="nav-btn" onclick="switchTab('accessories')">📎 DMZ配件管理</button>
         <button class="nav-btn" onclick="switchTab('missions')">📋 任務管理</button>
         <button class="nav-btn" onclick="switchTab('boosting')">📈 上分管理</button>
         
@@ -159,14 +160,14 @@
 
         <div id="tab-products" class="tab-content">
             <div class="card" data-aos="fade-up">
-                <h2>🛒 商品管理</h2>
-                <p style="color:#aaa; margin-bottom: 12px;">上架 DMZ 槍枝商品圖片、商品描述與售價，前台會自動同步顯示商品卡片。</p>
+                <h2>🛒 DMZ槍枝管理</h2>
+                <p style="color:#aaa; margin-bottom: 12px;">上架 DMZ 槍枝商品圖片、商品描述與售價，前台會自動同步顯示槍枝卡片。</p>
                 <div class="service-toggle-row">
                     <div class="service-toggle-copy">
-                        <strong>DMZ 槍枝配件｜暫停服務</strong>
+                        <strong>DMZ 槍枝｜暫停服務</strong>
                         <span id="dmzGunsPauseStatusText">目前：服務中</span>
                     </div>
-                    <label class="service-switch" title="切換 DMZ 槍枝配件是否暫停服務">
+                    <label class="service-switch" title="切換 DMZ 槍枝是否暫停服務">
                         <input type="checkbox" id="dmzGunsPauseToggle" onchange="toggleServicePause('dmzGunsPaused', this)">
                         <span class="slider"></span>
                     </label>
@@ -220,6 +221,58 @@
                             <span id="dmzProductCount">0 件</span>
                         </div>
                         <div class="list-container" id="dmzProductList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-accessories" class="tab-content">
+            <div class="card" data-aos="fade-up">
+                <h2>📎 DMZ配件管理</h2>
+                <p style="color:#aaa; margin-bottom: 12px;">上架 DMZ 配件圖片、名稱與售價，前台會同步顯示獨立配件頁面。</p>
+                <div class="service-toggle-row">
+                    <div class="service-toggle-copy">
+                        <strong>DMZ 配件｜暫停服務</strong>
+                        <span id="dmzAccessoriesPauseStatusText">目前：服務中</span>
+                    </div>
+                    <label class="service-switch" title="切換 DMZ 配件是否暫停服務">
+                        <input type="checkbox" id="dmzAccessoriesPauseToggle" onchange="toggleServicePause('dmzAccessoriesPaused', this)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="dmz-admin-grid">
+                    <div class="dmz-admin-form-panel">
+                        <div class="input-group">
+                            <label>配件圖片</label>
+                            <input type="file" id="dmzAccessoryImage" accept="image/*" onchange="previewDmzAccessoryImage(event)">
+                            <small style="color:#aaa; display:block; margin-top:6px;">系統會自動壓縮圖片並建立配件編號。</small>
+                        </div>
+                        <div class="input-group">
+                            <label>配件名稱</label>
+                            <input type="text" id="dmzAccessoryName" placeholder="例如：556 極致彈匣">
+                        </div>
+                        <div class="input-group">
+                            <label>配件說明（選填）</label>
+                            <textarea id="dmzAccessoryDescription" rows="4" placeholder="可填寫這項配件的補充說明、特色、使用建議...（可不填）"></textarea>
+                        </div>
+                        <div class="input-group">
+                            <label>定價</label>
+                            <input type="number" id="dmzAccessoryPrice" min="0" step="1" placeholder="請輸入售價">
+                        </div>
+                        <div id="dmzAccessoryPreview" class="dmz-product-preview empty-state" title="預覽配件圖片">尚未選擇圖片</div>
+                        <div class="dmz-upload-actions">
+                            <button id="dmzAccessorySubmitBtn" class="btn btn-success" onclick="saveDmzAccessory()">📦 上架配件</button>
+                            <button id="dmzAccessoryCancelBtn" class="btn btn-danger" onclick="cancelDmzAccessoryUpload()" style="display:none;">取消上傳</button>
+                        </div>
+                    </div>
+
+                    <div class="dmz-admin-list-panel">
+                        <div class="dmz-admin-list-head">
+                            <h3>已上架配件</h3>
+                            <span id="dmzAccessoryCount">0 件</span>
+                        </div>
+                        <div class="list-container" id="dmzAccessoryList"></div>
                     </div>
                 </div>
             </div>

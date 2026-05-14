@@ -203,6 +203,7 @@ let currentCodeSubTab = 'generate';
 let currentMemberSubTab = 'active';
 let currentOrdersCache = [];
 let currentDmzProductsCache = [];
+let currentDmzAccessoriesCache = [];
 let pendingDmzProductImageData = '';
 let pendingDmzProductOriginalData = '';
 let isDmzUploadProcessing = false;
@@ -214,6 +215,15 @@ let editingDmzProductId = null;
 let pendingEditImageData = '';
 let pendingEditOriginalData = '';
 let currentEditProductOriginalData = '';
+let pendingDmzAccessoryImageData = '';
+let pendingDmzAccessoryOriginalData = '';
+let isDmzAccessoryUploadProcessing = false;
+let isDmzAccessoryUploadSubmitting = false;
+let cancelDmzAccessoryUploadRequested = false;
+let dmzAccessoryCreatePreviewTaskToken = 0;
+let dmzAccessorySaveTaskToken = 0;
+let editingDmzAccessoryId = null;
+let currentEditAccessoryOriginalData = '';
 let currentDmzMissionsCache = [];
 let pendingMissionImageData = '';
 let pendingMissionOriginalData = '';
@@ -228,7 +238,8 @@ let pendingEditMissionOriginalData = '';
 let currentEditMissionOriginalData = '';
 let currentServiceStatus = {
     dmzQuotePaused: false,
-    dmzGunsPaused: false
+    dmzGunsPaused: false,
+    dmzAccessoriesPaused: false
 };
 
 // ===== 新的三層結構相關變量 =====
@@ -346,7 +357,7 @@ function copyToClipboard(text, button) {
 
 async function loadData() {
     try {
-        const [membersSnapshot, codesSnapshot, queueSnapshot, sessionSnapshot, backupSnapshot, configSnapshot, ordersSnapshot, dmzProductsSnapshot, weeksSnapshot, taskTitlesSnapshot, taskContentsSnapshot, serviceStatusSnapshot] = await Promise.all([
+        const [membersSnapshot, codesSnapshot, queueSnapshot, sessionSnapshot, backupSnapshot, configSnapshot, ordersSnapshot, dmzProductsSnapshot, dmzAccessoriesSnapshot, weeksSnapshot, taskTitlesSnapshot, taskContentsSnapshot, serviceStatusSnapshot] = await Promise.all([
             database.ref('members').once('value'),
             database.ref('activationCodes').once('value'),
             database.ref('queue').once('value'),
@@ -355,6 +366,7 @@ async function loadData() {
             database.ref('calculatorConfig').once('value'),
             database.ref('orders').once('value'),
             database.ref('dmzProducts').once('value'),
+            database.ref('dmzAccessories').once('value'),
             database.ref('dmzMissionWeeks').once('value'),
             database.ref('dmzMissionTaskTitles').once('value'),
             database.ref('dmzMissionTaskContents').once('value'),
@@ -371,6 +383,8 @@ async function loadData() {
         const orders = Object.keys(ordersData).map(key => ({ id: key, ...ordersData[key] }));
         const dmzProductsData = dmzProductsSnapshot.val() || {};
         const dmzProducts = Object.keys(dmzProductsData).map(key => ({ id: key, ...dmzProductsData[key] }));
+        const dmzAccessoriesData = dmzAccessoriesSnapshot.val() || {};
+        const dmzAccessories = Object.keys(dmzAccessoriesData).map(key => ({ id: key, ...dmzAccessoriesData[key] }));
         
         // 新的三層任務結構
         const weeksData = weeksSnapshot.val() || {};
@@ -382,7 +396,8 @@ async function loadData() {
         const serviceStatusData = serviceStatusSnapshot.val() || {};
         currentServiceStatus = {
             dmzQuotePaused: !!serviceStatusData.dmzQuotePaused,
-            dmzGunsPaused: !!serviceStatusData.dmzGunsPaused
+            dmzGunsPaused: !!serviceStatusData.dmzGunsPaused,
+            dmzAccessoriesPaused: !!serviceStatusData.dmzAccessoriesPaused
         };
         
         // 排隊排序
@@ -400,6 +415,7 @@ async function loadData() {
 
         orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         dmzProducts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        dmzAccessories.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
         return {
             members,
@@ -407,6 +423,7 @@ async function loadData() {
             queue,
             orders,
             dmzProducts,
+            dmzAccessories,
             weeks,
             taskTitles,
             taskContents,
@@ -417,7 +434,7 @@ async function loadData() {
         };
     } catch (error) {
         console.error('載入資料失敗:', error);
-        return { members: [], activationCodes: [], queue: [], orders: [], dmzProducts: [], weeks: [], taskTitles: [], taskContents: [], gameSession: null, lastBackupTime: null, calculatorConfig: DEFAULT_CONFIG, serviceStatus: currentServiceStatus };
+        return { members: [], activationCodes: [], queue: [], orders: [], dmzProducts: [], dmzAccessories: [], weeks: [], taskTitles: [], taskContents: [], gameSession: null, lastBackupTime: null, calculatorConfig: DEFAULT_CONFIG, serviceStatus: currentServiceStatus };
     }
 }
 
@@ -510,6 +527,7 @@ async function refreshAdminDashboard() {
         renderMemberLists(data.members);
         renderOrderManagement(cleanedOrders);
         renderProductManagement(data.dmzProducts || []);
+        renderAccessoryManagement(data.dmzAccessories || []);
         renderWeekManagement(data.weeks || []);
         renderTaskTitleManagement(data.taskTitles || []);
         renderTaskContentManagement(data.taskContents || []);
@@ -523,22 +541,29 @@ async function refreshAdminDashboard() {
 function renderServicePauseControls(serviceStatus) {
     currentServiceStatus = {
         dmzQuotePaused: !!serviceStatus?.dmzQuotePaused,
-        dmzGunsPaused: !!serviceStatus?.dmzGunsPaused
+        dmzGunsPaused: !!serviceStatus?.dmzGunsPaused,
+        dmzAccessoriesPaused: !!serviceStatus?.dmzAccessoriesPaused
     };
 
     const quoteToggle = document.getElementById('dmzQuotePauseToggle');
     const gunsToggle = document.getElementById('dmzGunsPauseToggle');
+    const accessoriesToggle = document.getElementById('dmzAccessoriesPauseToggle');
     const quoteStatusText = document.getElementById('dmzQuotePauseStatusText');
     const gunsStatusText = document.getElementById('dmzGunsPauseStatusText');
+    const accessoriesStatusText = document.getElementById('dmzAccessoriesPauseStatusText');
     const quoteRow = quoteToggle ? quoteToggle.closest('.service-toggle-row') : null;
     const gunsRow = gunsToggle ? gunsToggle.closest('.service-toggle-row') : null;
+    const accessoriesRow = accessoriesToggle ? accessoriesToggle.closest('.service-toggle-row') : null;
 
     if (quoteToggle) quoteToggle.checked = currentServiceStatus.dmzQuotePaused;
     if (gunsToggle) gunsToggle.checked = currentServiceStatus.dmzGunsPaused;
+    if (accessoriesToggle) accessoriesToggle.checked = currentServiceStatus.dmzAccessoriesPaused;
     if (quoteStatusText) quoteStatusText.textContent = currentServiceStatus.dmzQuotePaused ? '目前：已暫停服務' : '目前：服務中';
     if (gunsStatusText) gunsStatusText.textContent = currentServiceStatus.dmzGunsPaused ? '目前：已暫停服務' : '目前：服務中';
+    if (accessoriesStatusText) accessoriesStatusText.textContent = currentServiceStatus.dmzAccessoriesPaused ? '目前：已暫停服務' : '目前：服務中';
     if (quoteRow) quoteRow.classList.toggle('is-paused', currentServiceStatus.dmzQuotePaused);
     if (gunsRow) gunsRow.classList.toggle('is-paused', currentServiceStatus.dmzGunsPaused);
+    if (accessoriesRow) accessoriesRow.classList.toggle('is-paused', currentServiceStatus.dmzAccessoriesPaused);
 }
 
 async function toggleServicePause(statusKey, checkboxEl) {
@@ -570,7 +595,7 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.getElementById(`tab-${tabName}`).classList.add('active');
     
-    if (tabName === 'audience' || tabName === 'orders' || tabName === 'products' || tabName === 'missions' || tabName === 'boosting') {
+    if (tabName === 'audience' || tabName === 'orders' || tabName === 'products' || tabName === 'accessories' || tabName === 'missions' || tabName === 'boosting') {
         refreshAdminDashboard();
     }
 }
@@ -1100,6 +1125,18 @@ function buildDmzProductCode(products) {
     return `DMZ-${String(maxNumber + 1).padStart(3, '0')}`;
 }
 
+function buildDmzAccessoryCode(accessories) {
+    const usedCodes = new Set((accessories || []).map((accessory) => String(accessory.code || '').trim().toUpperCase()).filter(Boolean));
+    for (let index = 0; index < 26; index += 1) {
+        const candidate = String.fromCharCode(65 + index);
+        if (!usedCodes.has(candidate)) {
+            return candidate;
+        }
+    }
+
+    return `ACC-${String((accessories || []).length + 1).padStart(3, '0')}`;
+}
+
 function compressImageFile(file, maxWidth = 1920, maxHeight = 1920, quality = 0.9) {
     return new Promise((resolve, reject) => {
         if (!file) {
@@ -1543,6 +1580,287 @@ function renderProductManagement(products) {
                     <div style="display:flex; gap:8px;">
                         <button class="btn btn-secondary btn-small" onclick="editDmzProduct('${product.id}')">✏️ 編輯</button>
                         <button class="btn btn-danger btn-small" onclick="deleteDmzProduct('${product.id}')">刪除</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateDmzAccessoryUploadActionState() {
+    const submitBtn = document.getElementById('dmzAccessorySubmitBtn');
+    const cancelBtn = document.getElementById('dmzAccessoryCancelBtn');
+    const isBusy = isDmzAccessoryUploadProcessing || isDmzAccessoryUploadSubmitting;
+
+    if (submitBtn) {
+        submitBtn.disabled = isBusy;
+        submitBtn.textContent = isDmzAccessoryUploadProcessing
+            ? '圖片處理中...'
+            : (isDmzAccessoryUploadSubmitting
+                ? '上傳中...'
+                : (editingDmzAccessoryId ? '💾 儲存變更' : '📦 上架配件'));
+    }
+
+    if (cancelBtn) {
+        const shouldShow = isBusy || !!editingDmzAccessoryId;
+        cancelBtn.style.display = shouldShow ? 'inline-flex' : 'none';
+        cancelBtn.disabled = !shouldShow;
+        cancelBtn.textContent = cancelDmzAccessoryUploadRequested
+            ? '取消中...'
+            : (editingDmzAccessoryId ? '取消編輯' : '取消上傳');
+    }
+}
+
+function resetDmzAccessoryForm() {
+    const imageInput = document.getElementById('dmzAccessoryImage');
+    const nameInput = document.getElementById('dmzAccessoryName');
+    const descInput = document.getElementById('dmzAccessoryDescription');
+    const priceInput = document.getElementById('dmzAccessoryPrice');
+    const preview = document.getElementById('dmzAccessoryPreview');
+
+    pendingDmzAccessoryImageData = '';
+    pendingDmzAccessoryOriginalData = '';
+    currentEditAccessoryOriginalData = '';
+    editingDmzAccessoryId = null;
+    isDmzAccessoryUploadProcessing = false;
+    isDmzAccessoryUploadSubmitting = false;
+    cancelDmzAccessoryUploadRequested = false;
+    dmzAccessoryCreatePreviewTaskToken += 1;
+    dmzAccessorySaveTaskToken += 1;
+
+    if (imageInput) imageInput.value = '';
+    if (nameInput) nameInput.value = '';
+    if (descInput) descInput.value = '';
+    if (priceInput) priceInput.value = '';
+    if (preview) {
+        preview.className = 'dmz-product-preview empty-state';
+        preview.innerHTML = '尚未選擇圖片';
+    }
+
+    updateDmzAccessoryUploadActionState();
+}
+
+function cancelDmzAccessoryUpload() {
+    if (isDmzAccessoryUploadProcessing || isDmzAccessoryUploadSubmitting) {
+        cancelDmzAccessoryUploadRequested = true;
+        updateDmzAccessoryUploadActionState();
+        return;
+    }
+
+    resetDmzAccessoryForm();
+}
+
+async function previewDmzAccessoryImage(event) {
+    const file = event.target.files && event.target.files[0];
+    const preview = document.getElementById('dmzAccessoryPreview');
+    if (!preview) return;
+
+    const taskToken = ++dmzAccessoryCreatePreviewTaskToken;
+
+    if (!file) {
+        pendingDmzAccessoryImageData = '';
+        pendingDmzAccessoryOriginalData = '';
+        preview.className = 'dmz-product-preview empty-state';
+        preview.innerHTML = editingDmzAccessoryId ? '目前圖片' : '尚未選擇圖片';
+        isDmzAccessoryUploadProcessing = false;
+        cancelDmzAccessoryUploadRequested = false;
+        updateDmzAccessoryUploadActionState();
+        return;
+    }
+
+    isDmzAccessoryUploadProcessing = true;
+    cancelDmzAccessoryUploadRequested = false;
+    updateDmzAccessoryUploadActionState();
+
+    try {
+        const [originalData, thumbData] = await Promise.all([
+            readFileAsDataURL(file),
+            compressImageFile(file)
+        ]);
+
+        if (taskToken !== dmzAccessoryCreatePreviewTaskToken || cancelDmzAccessoryUploadRequested) {
+            pendingDmzAccessoryImageData = '';
+            pendingDmzAccessoryOriginalData = '';
+            preview.className = 'dmz-product-preview empty-state';
+            preview.innerHTML = '已取消圖片處理';
+            return;
+        }
+
+        pendingDmzAccessoryOriginalData = originalData;
+        pendingDmzAccessoryImageData = thumbData;
+        preview.className = 'dmz-product-preview';
+        preview.innerHTML = `<img src="${pendingDmzAccessoryImageData}" alt="配件預覽"><span>${editingDmzAccessoryId ? '圖片已準備更新' : '圖片已準備上傳'}</span>`;
+    } catch (error) {
+        console.error('DMZ 配件圖片預覽失敗:', error);
+        pendingDmzAccessoryImageData = '';
+        pendingDmzAccessoryOriginalData = '';
+        preview.className = 'dmz-product-preview empty-state';
+        preview.innerHTML = '圖片處理失敗，請重新選擇';
+        alert('圖片處理失敗，請重新選擇一張圖片。');
+    } finally {
+        isDmzAccessoryUploadProcessing = false;
+        if (!cancelDmzAccessoryUploadRequested) {
+            updateDmzAccessoryUploadActionState();
+        }
+    }
+}
+
+async function saveDmzAccessory() {
+    if (isDmzAccessoryUploadProcessing || isDmzAccessoryUploadSubmitting) return;
+
+    const name = document.getElementById('dmzAccessoryName')?.value.trim() || '';
+    const description = document.getElementById('dmzAccessoryDescription')?.value.trim() || '';
+    const price = Number(document.getElementById('dmzAccessoryPrice')?.value || 0);
+
+    if (!name) {
+        alert('請輸入配件名稱。');
+        return;
+    }
+    if (!price || price < 0) {
+        alert('請輸入有效的配件定價。');
+        return;
+    }
+    if (!editingDmzAccessoryId && !pendingDmzAccessoryImageData) {
+        alert('請先選擇配件圖片。');
+        return;
+    }
+
+    const taskToken = ++dmzAccessorySaveTaskToken;
+    cancelDmzAccessoryUploadRequested = false;
+    isDmzAccessoryUploadSubmitting = true;
+    updateDmzAccessoryUploadActionState();
+
+    try {
+        if (editingDmzAccessoryId) {
+            const updateData = {
+                name,
+                description,
+                price,
+                updatedAt: Date.now()
+            };
+
+            if (pendingDmzAccessoryImageData) {
+                updateData.imageData = pendingDmzAccessoryImageData;
+                updateData.originalImageData = pendingDmzAccessoryOriginalData || pendingDmzAccessoryImageData;
+            }
+
+            await database.ref(`dmzAccessories/${editingDmzAccessoryId}`).update(updateData);
+        } else {
+            const code = buildDmzAccessoryCode(currentDmzAccessoriesCache);
+            const newRef = database.ref('dmzAccessories').push();
+
+            await newRef.set({
+                code,
+                name,
+                description,
+                price,
+                imageData: pendingDmzAccessoryImageData,
+                originalImageData: pendingDmzAccessoryOriginalData || pendingDmzAccessoryImageData,
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            });
+
+            if (taskToken !== dmzAccessorySaveTaskToken || cancelDmzAccessoryUploadRequested) {
+                await newRef.remove();
+                alert('已取消上傳。');
+                return;
+            }
+        }
+
+        resetDmzAccessoryForm();
+        await refreshAdminDashboard();
+    } catch (error) {
+        if (cancelDmzAccessoryUploadRequested) {
+            alert('已取消上傳。');
+            return;
+        }
+        console.error('上傳 DMZ 配件失敗:', error);
+        alert('上傳配件失敗，請稍後再試。');
+    } finally {
+        isDmzAccessoryUploadSubmitting = false;
+        cancelDmzAccessoryUploadRequested = false;
+        updateDmzAccessoryUploadActionState();
+    }
+}
+
+function editDmzAccessory(accessoryId) {
+    const accessory = currentDmzAccessoriesCache.find((item) => item.id === accessoryId);
+    if (!accessory) return;
+
+    editingDmzAccessoryId = accessoryId;
+    pendingDmzAccessoryImageData = '';
+    pendingDmzAccessoryOriginalData = '';
+    currentEditAccessoryOriginalData = accessory.originalImageData || accessory.imageData || '';
+
+    const imageInput = document.getElementById('dmzAccessoryImage');
+    const nameInput = document.getElementById('dmzAccessoryName');
+    const descInput = document.getElementById('dmzAccessoryDescription');
+    const priceInput = document.getElementById('dmzAccessoryPrice');
+    const preview = document.getElementById('dmzAccessoryPreview');
+
+    if (imageInput) imageInput.value = '';
+    if (nameInput) nameInput.value = accessory.name || '';
+    if (descInput) descInput.value = accessory.description || '';
+    if (priceInput) priceInput.value = accessory.price || '';
+    if (preview) {
+        if (accessory.imageData) {
+            preview.className = 'dmz-product-preview';
+            preview.innerHTML = `<img src="${accessory.imageData}" alt="DMZ 配件預覽"><span>目前圖片（可重新選擇）</span>`;
+        } else {
+            preview.className = 'dmz-product-preview empty-state';
+            preview.innerHTML = '無圖片';
+        }
+    }
+
+    updateDmzAccessoryUploadActionState();
+}
+
+async function deleteDmzAccessory(accessoryId) {
+    const accessory = currentDmzAccessoriesCache.find((item) => item.id === accessoryId);
+    const confirmed = confirm(`確定要刪除配件 ${accessory?.code || accessoryId} 嗎？\n此操作無法復原。`);
+    if (!confirmed) return;
+
+    showLoading();
+    try {
+        await database.ref(`dmzAccessories/${accessoryId}`).remove();
+        await refreshAdminDashboard();
+    } catch (error) {
+        console.error('刪除 DMZ 配件失敗:', error);
+        alert('刪除配件失敗，請稍後再試。');
+    } finally {
+        hideLoading();
+    }
+}
+
+function renderAccessoryManagement(accessories) {
+    currentDmzAccessoriesCache = Array.isArray(accessories) ? accessories : [];
+
+    const listEl = document.getElementById('dmzAccessoryList');
+    const countEl = document.getElementById('dmzAccessoryCount');
+    if (!listEl || !countEl) return;
+
+    countEl.textContent = `${currentDmzAccessoriesCache.length} 件`;
+
+    if (!currentDmzAccessoriesCache.length) {
+        listEl.innerHTML = '<div class="empty-state">目前尚未上架任何 DMZ 配件</div>';
+        return;
+    }
+
+    listEl.innerHTML = currentDmzAccessoriesCache.map((accessory) => `
+        <div class="dmz-admin-item">
+            <img src="${accessory.imageData}" alt="${escapeHtml(accessory.code)}" class="dmz-admin-item-image">
+            <div class="dmz-admin-item-body">
+                <h4 class="dmz-admin-item-name">${escapeHtml(accessory.name || accessory.code || '未命名配件')}</h4>
+                <div class="dmz-admin-item-top">
+                    <strong>${escapeHtml(accessory.code || 'ACC-001')}</strong>
+                    <span>${formatCurrency(accessory.price)}</span>
+                </div>
+                <p>${escapeHtml(accessory.description || '').replace(/\n/g, '<br>')}</p>
+                <div class="dmz-admin-item-actions">
+                    <span>建立時間：${formatOrderDateTime(accessory.createdAt)}</span>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-secondary btn-small" onclick="editDmzAccessory('${accessory.id}')">✏️ 編輯</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteDmzAccessory('${accessory.id}')">刪除</button>
                     </div>
                 </div>
             </div>

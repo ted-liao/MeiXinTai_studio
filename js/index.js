@@ -34,8 +34,10 @@ let selectedPurchaseTier = 'legend';
 let selectedPurchaseDuration = 30;
 let currentDmzGunsTab = 'products';
 let currentDmzProductsCache = [];
+let currentDmzAccessoriesCache = [];
 let currentDmzCartItems = [];
 let dmzProductsRealtimeBound = false;
+let dmzAccessoriesRealtimeBound = false;
 let dmzPreviewTapState = { productId: null, time: 0 };
 let currentDmzMissionsCache = [];
 let currentDmzQuoteSelectedMissions = [];
@@ -50,7 +52,8 @@ let selectedWeekForTaskTitle = null;
 let selectedTaskTitleForContent = null;
 let serviceStatusCache = {
     dmzQuotePaused: false,
-    dmzGunsPaused: false
+    dmzGunsPaused: false,
+    dmzAccessoriesPaused: false
 };
 let serviceStatusRealtimeBound = false;
 
@@ -88,6 +91,25 @@ const DMZ_COMBO_PRICES = {
     'a+b+c+d': { label: 'A+B+C+D 全套餐（撞兩把）', price: 1100 }
 };
 const DMZ_ACCESSORY_CART_ITEM_ID = 'dmz-guns-accessory-package';
+
+function getDmzAccessoryCatalog() {
+    if (currentDmzAccessoriesCache.length) {
+        return currentDmzAccessoriesCache.reduce((catalog, accessory) => {
+            const normalizedCode = String(accessory.code || '').trim().toLowerCase();
+            if (!normalizedCode) return catalog;
+            catalog[normalizedCode] = {
+                code: String(accessory.code || '').trim().toUpperCase(),
+                label: accessory.name || accessory.label || String(accessory.code || '').trim().toUpperCase(),
+                price: Number(accessory.price || 0),
+                imageData: accessory.imageData || accessory.originalImageData || '',
+                description: accessory.description || ''
+            };
+            return catalog;
+        }, {});
+    }
+
+    return DMZ_ACCESSORY_OPTIONS;
+}
 
 // 預設計算機設定 (備用)
 const DEFAULT_CALC_CONFIG = {
@@ -404,7 +426,7 @@ function buildMembershipOrderData() {
 }
 
 function getSelectedDmzAccessoryKeys() {
-    return Array.from(document.querySelectorAll('#dmzGunsPanelAccessories .dmz-accessory-card input:checked'))
+    return Array.from(document.querySelectorAll('#dmzAccessoryGrid .dmz-accessory-card input:checked'))
         .map((input) => input.value)
         .sort();
 }
@@ -416,7 +438,8 @@ function getDmzAccessoryPricing(selectedKeys) {
 
     const comboKey = selectedKeys.join('+');
     const combo = DMZ_COMBO_PRICES[comboKey];
-    const detail = selectedKeys.map((key) => DMZ_ACCESSORY_OPTIONS[key]).filter(Boolean);
+    const catalog = getDmzAccessoryCatalog();
+    const detail = selectedKeys.map((key) => catalog[key]).filter(Boolean);
 
     if (combo) {
         return { price: combo.price, label: combo.label, detail };
@@ -515,7 +538,7 @@ function updateDmzGunAccessorySummary() {
     if (tagsEl) {
         tagsEl.innerHTML = accessoryPricing.detail.length
             ? accessoryPricing.detail.map((item) => `<span class="dmz-selection-tag">${item.code}. ${escapeHtml(item.label)}</span>`).join('')
-            : '<span class="dmz-selection-tag is-empty">尚未選擇 DMZ槍枝配件</span>';
+            : '<span class="dmz-selection-tag is-empty">尚未選擇 DMZ配件</span>';
     }
 
     if (addCartBtn) {
@@ -549,7 +572,7 @@ function addDmzGunAccessoriesToCart() {
     const accessoryPricing = getDmzAccessoryPricing(accessoryKeys);
 
     if (accessoryPricing.price <= 0) {
-        alert('請先選擇至少一項 DMZ槍枝配件，再加入購物車。');
+        alert('請先選擇至少一項 DMZ配件，再加入購物車。');
         return;
     }
 
@@ -558,7 +581,7 @@ function addDmzGunAccessoriesToCart() {
     const accessoryCartItem = {
         id: DMZ_ACCESSORY_CART_ITEM_ID,
         code: 'DMZ-ACC',
-        name: 'DMZ槍枝配件',
+        name: 'DMZ配件',
         description: `${accessoryPricing.label}${detailText ? `｜${detailText}` : ''}`,
         price: Number(accessoryPricing.price || 0),
         imageData: 'image/logo.jpg',
@@ -579,30 +602,6 @@ function addDmzGunAccessoriesToCart() {
 
 function switchDmzGunsTab(tabName, buttonEl = null) {
     currentDmzGunsTab = tabName === 'accessories' ? 'accessories' : 'products';
-
-    const productsPanel = document.getElementById('dmzGunsPanelProducts');
-    const accessoriesPanel = document.getElementById('dmzGunsPanelAccessories');
-    const productsBtn = document.getElementById('dmzGunsTabProducts');
-    const accessoriesBtn = document.getElementById('dmzGunsTabAccessories');
-
-    if (productsPanel) productsPanel.classList.toggle('active', currentDmzGunsTab === 'products');
-    if (accessoriesPanel) accessoriesPanel.classList.toggle('active', currentDmzGunsTab === 'accessories');
-
-    if (productsBtn) {
-        productsBtn.classList.toggle('active', currentDmzGunsTab === 'products');
-        productsBtn.setAttribute('aria-selected', currentDmzGunsTab === 'products' ? 'true' : 'false');
-    }
-    if (accessoriesBtn) {
-        accessoriesBtn.classList.toggle('active', currentDmzGunsTab === 'accessories');
-        accessoriesBtn.setAttribute('aria-selected', currentDmzGunsTab === 'accessories' ? 'true' : 'false');
-    }
-
-    // 保險同步：避免 class 與 aria 不一致導致小分頁亮暗顛倒
-    if (productsBtn && accessoriesBtn) {
-        const productsSelected = currentDmzGunsTab === 'products';
-        productsBtn.setAttribute('aria-selected', productsSelected ? 'true' : 'false');
-        accessoriesBtn.setAttribute('aria-selected', productsSelected ? 'false' : 'true');
-    }
 
     if (buttonEl && typeof buttonEl.blur === 'function') buttonEl.blur();
 
@@ -798,12 +797,13 @@ function closeDmzCartModalOverlay(event) {
 function toggleDmzFloatingCartBar(pageId) {
     const floatingCartBar = document.getElementById('dmzFloatingCartBar');
     if (!floatingCartBar) return;
-    floatingCartBar.style.display = pageId === 'dmz-guns' ? 'flex' : 'none';
+    floatingCartBar.style.display = (pageId === 'dmz-guns' || pageId === 'dmz-accessories') ? 'flex' : 'none';
 }
 
 function isDmzPagePaused(pageId) {
     if (pageId === 'dmz-quote') return !!serviceStatusCache.dmzQuotePaused;
     if (pageId === 'dmz-guns') return !!serviceStatusCache.dmzGunsPaused;
+    if (pageId === 'dmz-accessories') return !!serviceStatusCache.dmzAccessoriesPaused;
     return false;
 }
 
@@ -812,7 +812,8 @@ function applyServicePauseState() {
         const action = btn.getAttribute('onclick') || '';
         const isQuoteBtn = action.includes("dmz-quote");
         const isGunsBtn = action.includes("dmz-guns");
-        const paused = (isQuoteBtn && serviceStatusCache.dmzQuotePaused) || (isGunsBtn && serviceStatusCache.dmzGunsPaused);
+        const isAccessoryBtn = action.includes("dmz-accessories");
+        const paused = (isQuoteBtn && serviceStatusCache.dmzQuotePaused) || (isGunsBtn && serviceStatusCache.dmzGunsPaused) || (isAccessoryBtn && serviceStatusCache.dmzAccessoriesPaused);
         btn.classList.toggle('service-paused', paused);
         btn.dataset.servicePaused = paused ? 'true' : 'false';
     });
@@ -824,7 +825,8 @@ async function refreshServiceStatusCache() {
         const data = snapshot.val() || {};
         serviceStatusCache = {
             dmzQuotePaused: !!data.dmzQuotePaused,
-            dmzGunsPaused: !!data.dmzGunsPaused
+            dmzGunsPaused: !!data.dmzGunsPaused,
+            dmzAccessoriesPaused: !!data.dmzAccessoriesPaused
         };
         applyServicePauseState();
     } catch (error) {
@@ -854,7 +856,8 @@ function bindServiceStatusRealtime() {
         const data = snapshot.val() || {};
         serviceStatusCache = {
             dmzQuotePaused: !!data.dmzQuotePaused,
-            dmzGunsPaused: !!data.dmzGunsPaused
+            dmzGunsPaused: !!data.dmzGunsPaused,
+            dmzAccessoriesPaused: !!data.dmzAccessoriesPaused
         };
         applyServicePauseState();
     }, (error) => {
@@ -904,6 +907,32 @@ function renderDmzProductGrid(products = []) {
     }).join('');
 }
 
+function renderDmzAccessoryGrid(accessories = []) {
+    const grid = document.getElementById('dmzAccessoryGrid');
+    if (!grid) return;
+
+    if (!accessories.length) {
+        grid.innerHTML = '<div class="empty-state">目前尚未上架 DMZ 配件</div>';
+        return;
+    }
+
+    grid.innerHTML = accessories.map((accessory) => {
+        const accessoryCode = String(accessory.code || '').trim().toLowerCase();
+        const displayCode = String(accessory.code || '').trim().toUpperCase() || 'DMZ';
+        const price = Number(accessory.price || 0);
+        return `
+        <label class="dmz-accessory-card">
+            <input type="checkbox" value="${escapeHtml(accessoryCode)}" onchange="updateDmzGunAccessorySummary()">
+            <span class="dmz-accessory-code">${escapeHtml(displayCode)}</span>
+            ${accessory.imageData ? `<img src="${accessory.imageData}" alt="${escapeHtml(accessory.name || displayCode)}" class="dmz-accessory-card-image">` : ''}
+            <strong>${escapeHtml(accessory.name || displayCode)}</strong>
+            <em>${formatPrice(price)}</em>
+            ${accessory.description ? `<p class="dmz-accessory-card-description">${escapeHtml(accessory.description).replace(/\n/g, '<br>')}</p>` : ''}
+        </label>
+    `;
+    }).join('');
+}
+
 function bindDmzProductsRealtime() {
     if (dmzProductsRealtimeBound) return;
 
@@ -927,6 +956,25 @@ function bindDmzProductsRealtime() {
         renderDmzProductGrid([]);
         renderDmzCartPage();
         updateDmzCartSummary();
+        updateDmzGunAccessorySummary();
+    });
+}
+
+function bindDmzAccessoriesRealtime() {
+    if (dmzAccessoriesRealtimeBound) return;
+
+    dmzAccessoriesRealtimeBound = true;
+    database.ref('dmzAccessories').on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        currentDmzAccessoriesCache = Object.keys(data)
+            .map((key) => ({ id: key, ...data[key] }))
+            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+        renderDmzAccessoryGrid(currentDmzAccessoriesCache);
+        updateDmzGunAccessorySummary();
+    }, (error) => {
+        console.error('監聽 DMZ 配件失敗:', error);
+        renderDmzAccessoryGrid([]);
         updateDmzGunAccessorySummary();
     });
 }
@@ -2534,8 +2582,11 @@ function showPage(pageId, allowPaused = false) {
         stopAutoRefresh();
         updateDmzCartSummary();
         renderDmzProductGrid(currentDmzProductsCache);
+    } else if (pageId === 'dmz-accessories') {
+        stopAutoRefresh();
+        bindDmzAccessoriesRealtime();
+        renderDmzAccessoryGrid(currentDmzAccessoriesCache);
         updateDmzGunAccessorySummary();
-        switchDmzGunsTab(currentDmzGunsTab);
     } else if (pageId === 'dmz-cart') {
         stopAutoRefresh();
         updateDmzCartSummary();
@@ -2547,7 +2598,7 @@ function showPage(pageId, allowPaused = false) {
         stopAutoRefresh();
     }
 
-    if (pageId === 'dmz-quote' || pageId === 'dmz-guns') {
+    if (pageId === 'dmz-quote' || pageId === 'dmz-guns' || pageId === 'dmz-accessories') {
         refreshServiceStatusCache();
     }
 

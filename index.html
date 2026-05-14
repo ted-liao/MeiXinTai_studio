@@ -88,7 +88,7 @@
 
                 <div class="site-home-intro" data-aos="fade-up">
                     <h2>🏠 歡迎來到玫心泰遊戲工作室</h2>
-                    <p class="site-home-lead">這裡是主播專屬服務平台，整合會員註冊、排隊管理、會員購買、多人報價、DMZ報價與 DMZ槍枝，讓你從了解方案到下單都能一次完成。</p>
+                    <p class="site-home-lead">這裡是主播專屬服務平台，整合會員註冊、排隊管理、會員購買、多人報價、DMZ報價、DMZ槍枝與 DMZ配件，讓你從了解方案到下單都能一次完成。</p>
 
                     <div class="site-home-sections">
                         <div class="site-home-zone site-home-zone-subs">
@@ -123,6 +123,10 @@
                                 <div class="site-home-item">
                                     <h4>DMZ槍枝</h4>
                                     <p>查看後台即時上架的槍枝商品、詞條、配件數與價格資訊。</p>
+                                </div>
+                                <div class="site-home-item">
+                                    <h4>DMZ配件</h4>
+                                    <p>瀏覽獨立整理的配件圖片與方案內容，快速選出要搭配的組合。</p>
                                 </div>
                             </div>
                         </div>
@@ -258,52 +262,33 @@
                             </div>
                         </div>
                     </div>
-
-
-
-                    <div style="margin-top: 30px; padding: 20px; border-radius: 10px;" data-aos="fade-up">
-
-                        <h3 style="margin-bottom: 15px;">📝 如何註冊</h3>
-
-                        <ol style="line-height: 2; padding-left: 20px;">
-
-                            <li>向主播購買會員方案，獲得 <strong>6位兌換碼</strong></li>
-
-                            <li>點擊右上角「註冊」按鈕</li>
-
-                            <li>輸入兌換碼和您的資料</li>
-
-                            <li>完成註冊,開始享受會員權益!</li>
-
-                        </ol>
-
-                    </div>
-
                 </div>
 
             </div>
 
+            <!-- ========== 會員資料 ========== -->
 
+            <div id="member" class="page">
+
+                <div class="card member-page-card">
+                    <div id="memberContent">
+                        <div class="empty-state" style="padding: 24px;">會員資料載入中...</div>
+                    </div>
+                </div>
+
+            </div>
 
             <!-- ========== 排隊系統 ========== -->
 
             <div id="queue" class="page">
 
-                <div id="queueContent"></div>
+                <div class="card queue-page-card">
+                    <div id="queueContent">
+                        <div class="empty-state" style="padding: 24px;">排隊資料載入中...</div>
+                    </div>
+                </div>
 
             </div>
-
-
-
-            <!-- ========== 我的會員 ========== -->
-
-            <div id="member" class="page">
-
-                <div id="memberContent"></div>
-
-            </div>
-
-
 
             <!-- ========== 購買會員 ========== -->
 
@@ -821,87 +806,74 @@
 
                     <div class="dmz-page-hero dmz-guns-hero">
                         <div>
-                            <h2>🔫 DMZ槍枝/配件</h2>
+                            <h2>🔫 DMZ槍枝</h2>
                         </div>
                         <div class="dmz-hero-note">商品由後台即時上架，請依商品編號洽詢工作室。</div>
                     </div>
 
-                    <div class="dmz-mini-tabs" role="tablist" aria-label="DMZ 槍枝小分頁">
-                        <button id="dmzGunsTabProducts" class="dmz-mini-tab active" onclick="switchDmzGunsTab('products', this)" role="tab" aria-controls="dmzGunsPanelProducts" aria-selected="true">DMZ槍枝</button>
-                        <button id="dmzGunsTabAccessories" class="dmz-mini-tab" onclick="switchDmzGunsTab('accessories', this)" role="tab" aria-controls="dmzGunsPanelAccessories" aria-selected="false">DMZ配件</button>
+                    <div id="dmzProductGrid" class="dmz-product-grid">
+                        <div class="empty-state">商品載入中...</div>
                     </div>
 
-                    <div id="dmzGunsPanelProducts" class="dmz-guns-panel active" role="tabpanel" aria-labelledby="dmzGunsTabProducts">
-                        <div id="dmzProductGrid" class="dmz-product-grid">
-                            <div class="empty-state">商品載入中...</div>
+                </div>
+
+            </div>
+
+            <div id="dmz-accessories" class="page">
+
+                <div class="card dmz-page-card">
+
+                    <div class="dmz-page-hero dmz-guns-hero">
+                        <div>
+                            <h2>📎 DMZ配件</h2>
+                            <p>獨立整理的配件頁面，會同步顯示後台上架的配件圖片與價格。</p>
                         </div>
+                        <div class="dmz-hero-note">可依照配件圖片與組合優惠選擇要加入購物車的內容。</div>
                     </div>
 
-                    <div id="dmzGunsPanelAccessories" class="dmz-guns-panel" role="tabpanel" aria-labelledby="dmzGunsTabAccessories">
-                        <div class="dmz-guns-accessory-layout">
-                            <div class="dmz-quote-config">
-                                <div class="dmz-accessory-section dmz-config-zone">
-                                    <h3>DMZ槍枝配件</h3>
-                                    <p>可自由勾選，若符合三件套餐或全套餐，系統會自動採用優惠價。</p>
-                                    <div class="dmz-accessory-grid">
-                                        <label class="dmz-accessory-card">
-                                            <input type="checkbox" value="a" onchange="updateDmzGunAccessorySummary()">
-                                            <span class="dmz-accessory-code">A</span>
-                                            <strong>556 極致彈匣</strong>
-                                            <em>NT$280</em>
-                                        </label>
-                                        <label class="dmz-accessory-card">
-                                            <input type="checkbox" value="b" onchange="updateDmzGunAccessorySummary()">
-                                            <span class="dmz-accessory-code">B</span>
-                                            <strong>Asval 極致彈匣</strong>
-                                            <em>NT$350</em>
-                                        </label>
-                                        <label class="dmz-accessory-card">
-                                            <input type="checkbox" value="c" onchange="updateDmzGunAccessorySummary()">
-                                            <span class="dmz-accessory-code">C</span>
-                                            <strong>DRH 極致槍管</strong>
-                                            <em>NT$280</em>
-                                        </label>
-                                        <label class="dmz-accessory-card">
-                                            <input type="checkbox" value="d" onchange="updateDmzGunAccessorySummary()">
-                                            <span class="dmz-accessory-code">D</span>
-                                            <strong>T19 熱成像鏡</strong>
-                                            <em>NT$320</em>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div class="dmz-package-pricing">
-                                    <h3>套餐價格</h3>
-                                    <div class="dmz-package-list">
-                                        <div>A+B+C：NT$850</div>
-                                        <div>A+B+D：NT$900</div>
-                                        <div>A+C+D：NT$800</div>
-                                        <div>B+C+D：NT$900</div>
-                                        <div>A+B+C+D：NT$1100（撞兩把）</div>
-                                    </div>
+                    <div class="dmz-guns-accessory-layout">
+                        <div class="dmz-quote-config">
+                            <div class="dmz-accessory-section dmz-config-zone">
+                                <h3>DMZ配件清單</h3>
+                                <p>可自由勾選，若符合三件套餐或全套餐，系統會自動採用優惠價。</p>
+                                <div id="dmzAccessoryGrid" class="dmz-accessory-grid">
+                                    <div class="empty-state">配件資料載入中...</div>
                                 </div>
                             </div>
 
-                            <div class="dmz-quote-summary-panel">
-                                <h3>DMZ槍枝配件摘要</h3>
-                                <div class="dmz-summary-box dmz-summary-box-accessory">
-                                    <h4>配件方案</h4>
-                                    <div class="dmz-summary-row"><span>已選項目</span><strong id="dmzGunAccessoryCount">0 項</strong></div>
-                                    <div class="dmz-summary-row"><span>配件方案</span><strong id="dmzGunAccessoryMode">未選擇</strong></div>
-                                    <div id="dmzGunSelectedAccessories" class="dmz-selection-tags"></div>
-                                    <div class="dmz-summary-row"><span>配件小計</span><strong id="dmzGunAccessoryTotal">NT$0</strong></div>
+                            <div class="dmz-package-pricing">
+                                <h3>套餐價格</h3>
+                                <div class="dmz-package-list">
+                                    <div>A+B+C：NT$850</div>
+                                    <div>A+B+D：NT$900</div>
+                                    <div>A+C+D：NT$800</div>
+                                    <div>B+C+D：NT$900</div>
+                                    <div>A+B+C+D：NT$1100（撞兩把）</div>
                                 </div>
+                            </div>
+                        </div>
 
-                                <div class="dmz-total-box">
-                                    <span>總計（DMZ槍枝配件）</span>
-                                    <strong id="dmzGunAccessorySummaryTotal">NT$0</strong>
-                                </div>
+                        <div class="dmz-quote-summary-panel">
+                            <h3>DMZ配件摘要</h3>
+                            <div class="dmz-summary-box dmz-summary-box-accessory">
+                                <h4>配件方案</h4>
+                                <div class="dmz-summary-row"><span>已選項目</span><strong id="dmzGunAccessoryCount">0 項</strong></div>
+                                <div class="dmz-summary-row"><span>配件方案</span><strong id="dmzGunAccessoryMode">未選擇</strong></div>
+                                <div id="dmzGunSelectedAccessories" class="dmz-selection-tags"></div>
+                                <div class="dmz-summary-row"><span>配件小計</span><strong id="dmzGunAccessoryTotal">NT$0</strong></div>
+                            </div>
 
-                                <div class="purchase-note-box dmz-note-box">
-                                    DMZ槍枝配件會先加入 DMZ 購物車，最後與槍枝商品一起下單。
-                                </div>
+                            <div class="dmz-total-box">
+                                <span>總計（DMZ配件）</span>
+                                <strong id="dmzGunAccessorySummaryTotal">NT$0</strong>
+                            </div>
 
+                            <div class="purchase-note-box dmz-note-box">
+                                DMZ配件會先加入 DMZ 購物車，最後與槍枝商品一起下單。
+                            </div>
+
+                            <div class="dmz-accessory-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
+                                <button class="btn btn-secondary calc-gold-flash-btn purchase-order-btn" onclick="showPage('dmz-guns')">← 返回 DMZ槍枝</button>
                                 <button id="dmzGunAccessoryAddCartBtn" class="btn btn-success calc-gold-flash-btn purchase-order-btn" onclick="addDmzGunAccessoriesToCart()">加入購物車</button>
                             </div>
                         </div>
@@ -965,7 +937,8 @@
         <div class="nav-group-title">Carry 專區</div>
         <button class="nav-btn nav-carry" onclick="showPage('calculator')">🚀 多人報價</button>
         <button class="nav-btn nav-carry" onclick="return handleDmzNavClick('dmz-quote', this)">💼 DMZ報價</button>
-        <button class="nav-btn nav-carry" onclick="return handleDmzNavClick('dmz-guns', this)">🔫 DMZ槍枝/配件</button>
+        <button class="nav-btn nav-carry" onclick="return handleDmzNavClick('dmz-guns', this)">🔫 DMZ槍枝</button>
+        <button class="nav-btn nav-carry" onclick="return handleDmzNavClick('dmz-accessories', this)">📎 DMZ配件</button>
     </div>
 
 </nav>
